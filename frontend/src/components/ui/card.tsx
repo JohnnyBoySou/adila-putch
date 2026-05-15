@@ -1,12 +1,18 @@
 import * as React from "react";
+import { motion, type HTMLMotionProps } from "motion/react";
 
 import { cn } from "@/lib/utils";
 
-const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+const Card = React.forwardRef<HTMLDivElement, HTMLMotionProps<"div">>(
   ({ className, ...props }, ref) => (
-    <div
+    <motion.div
       ref={ref}
-      className={cn("rounded-xl border bg-card text-card-foreground shadow", className)}
+      className={cn(
+        "rounded-xl border bg-card text-card-foreground shadow transition-shadow",
+        className,
+      )}
+      whileHover={{ y: -2, boxShadow: "0 8px 24px -8px rgb(0 0 0 / 0.18)" }}
+      transition={{ type: "spring", stiffness: 300, damping: 24 }}
       {...props}
     />
   ),

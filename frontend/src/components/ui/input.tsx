@@ -1,16 +1,21 @@
 import * as React from "react";
+import { motion, type HTMLMotionProps } from "motion/react";
 
 import { cn } from "@/lib/utils";
 
-const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
+const Input = React.forwardRef<HTMLInputElement, HTMLMotionProps<"input">>(
   ({ className, type, ...props }, ref) => {
     return (
-      <input
+      <motion.input
         type={type}
         className={cn(
           "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
           className,
         )}
+        whileFocus={
+          props.disabled ? undefined : { boxShadow: "0 4px 14px -6px rgb(0 0 0 / 0.18)" }
+        }
+        transition={{ type: "spring", stiffness: 300, damping: 26 }}
         ref={ref}
         {...props}
       />

@@ -1,15 +1,12 @@
 package services
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
-	"time"
 
-	"github.com/google/uuid"
-
-	"github.com/joaov/coffeeholic/internal/db"
+	"github.com/joaov/putch/internal/store"
 )
 
 type Folder struct {
@@ -20,45 +17,39 @@ type Folder struct {
 }
 
 type FoldersService struct {
-	store *db.Store
+	store *store.Store
 }
 
-func NewFoldersService(store *db.Store) *FoldersService {
-	return &FoldersService{store: store}
+func NewFoldersService(s *store.Store) *FoldersService {
+	return &FoldersService{store: s}
+}
+
+func toFolder(f store.Folder) Folder {
+	return Folder{ID: f.ID, Name: f.Name, CollectionID: f.CollectionID, CreatedAt: f.CreatedAt}
 }
 
 func (s *FoldersService) FindByCollectionID(collectionID string) ([]Folder, error) {
-	rows, err := s.store.DB.Query(
-		`SELECT id, name, collection_id, created_at FROM folders
-		 WHERE collection_id = ?
-		 ORDER BY name ASC`,
-		collectionID,
-	)
+	folders, err := s.store.ListFolders(collectionID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
+	sort.SliceStable(folders, func(i, j int) bool { return folders[i].Name < folders[j].Name })
 	out := []Folder{}
-	for rows.Next() {
-		var f Folder
-		if err := rows.Scan(&f.ID, &f.Name, &f.CollectionID, &f.CreatedAt); err != nil {
-			return nil, err
-		}
-		out = append(out, f)
+	for _, f := range folders {
+		out = append(out, toFolder(f))
 	}
-	return out, rows.Err()
+	return out, nil
 }
 
 func (s *FoldersService) FindByID(id string) (Folder, error) {
-	var f Folder
-	err := s.store.DB.QueryRow(
-		`SELECT id, name, collection_id, created_at FROM folders WHERE id = ?`, id,
-	).Scan(&f.ID, &f.Name, &f.CollectionID, &f.CreatedAt)
-	if errors.Is(err, sql.ErrNoRows) {
+	f, err := s.store.GetFolder(id)
+	if errors.Is(err, store.ErrNotFound) {
 		return Folder{}, fmt.Errorf("pasta não encontrada")
 	}
-	return f, err
+	if err != nil {
+		return Folder{}, err
+	}
+	return toFolder(f), nil
 }
 
 func (s *FoldersService) Create(collectionID, name string) (Folder, error) {
@@ -69,20 +60,14 @@ func (s *FoldersService) Create(collectionID, name string) (Folder, error) {
 	if strings.TrimSpace(collectionID) == "" {
 		return Folder{}, fmt.Errorf("collection_id é obrigatório")
 	}
-	f := Folder{
-		ID:           uuid.NewString(),
-		Name:         name,
-		CollectionID: collectionID,
-		CreatedAt:    time.Now().UTC().Format(time.RFC3339),
+	f, err := s.store.CreateFolder(collectionID, name)
+	if errors.Is(err, store.ErrNotFound) {
+		return Folder{}, fmt.Errorf("coleção não encontrada")
 	}
-	_, err := s.store.DB.Exec(
-		`INSERT INTO folders (id, name, collection_id, created_at) VALUES (?, ?, ?, ?)`,
-		f.ID, f.Name, f.CollectionID, f.CreatedAt,
-	)
 	if err != nil {
 		return Folder{}, err
 	}
-	return f, nil
+	return toFolder(f), nil
 }
 
 func (s *FoldersService) Update(id, name string) error {
@@ -90,11 +75,9 @@ func (s *FoldersService) Update(id, name string) error {
 	if name == "" {
 		return fmt.Errorf("nome da pasta não pode ser vazio")
 	}
-	_, err := s.store.DB.Exec(`UPDATE folders SET name = ? WHERE id = ?`, name, id)
-	return err
+	return s.store.UpdateFolder(id, name)
 }
 
 func (s *FoldersService) Delete(id string) error {
-	_, err := s.store.DB.Exec(`DELETE FROM folders WHERE id = ?`, id)
-	return err
+	return s.store.DeleteFolder(id)
 }

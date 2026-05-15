@@ -14,7 +14,7 @@ dist-ssr
 
 # Wails / Go
 bin/
-/coffeeholic
+/putch
 .task/
 frontend/bindings/
 frontend/dist/

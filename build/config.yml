@@ -5,11 +5,11 @@ version: '3'
 
 # This information is used to generate the build assets.
 info:
-  companyName: "Coffeeholic"
-  productName: "coffeeholic"
-  productIdentifier: "com.joaov.coffeeholic"
+  companyName: "joaov"
+  productName: "putch"
+  productIdentifier: "com.joaov.putch"
   description: "API client desktop"
-  copyright: "(c) 2026, Coffeeholic"
+  copyright: "(c) 2026, joaov"
   comments: "Insomnia-like API client built with Wails 3"
   version: "0.1.0"
   # cfBundleIconName: "appicon" # The macOS icon name in Assets.car icon bundles (optional)

@@ -2,8 +2,6 @@ package services
 
 import (
 	"bytes"
-	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -11,9 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
-
-	"github.com/joaov/coffeeholic/internal/db"
+	"github.com/joaov/putch/internal/store"
 )
 
 type Request struct {
@@ -65,197 +61,98 @@ type ResponseData struct {
 }
 
 type RequestsService struct {
-	store  *db.Store
+	store  *store.Store
 	client *http.Client
 }
 
-func NewRequestsService(store *db.Store) *RequestsService {
+func NewRequestsService(s *store.Store) *RequestsService {
 	return &RequestsService{
-		store:  store,
+		store:  s,
 		client: &http.Client{Timeout: 60 * time.Second},
 	}
 }
 
-func scanRequest(rows interface {
-	Scan(dest ...any) error
-}) (Request, error) {
-	var (
-		r           Request
-		folderID    sql.NullString
-		headersJSON string
-		isFav       int
-		isActive    int
-	)
-	err := rows.Scan(
-		&r.ID, &r.Name, &r.CollectionID, &folderID, &r.URL, &r.Method,
-		&headersJSON, &r.Body, &r.CreatedAt, &r.UpdatedAt,
-		&isFav, &isActive,
-	)
-	if err != nil {
-		return r, err
+// toRequest converte o tipo do store para o tipo do binding. updated_at não é
+// mais rastreado (o histórico do git é a fonte) — espelha created_at para
+// manter o formato do binding estável.
+func toRequest(r store.Request) Request {
+	headers := r.Headers
+	if headers == nil {
+		headers = map[string]string{}
 	}
-	if folderID.Valid {
-		r.FolderID = folderID.String
+	return Request{
+		ID:           r.ID,
+		Name:         r.Name,
+		CollectionID: r.CollectionID,
+		FolderID:     r.FolderID,
+		URL:          r.URL,
+		Method:       r.Method,
+		Headers:      headers,
+		Body:         r.Body,
+		CreatedAt:    r.CreatedAt,
+		UpdatedAt:    r.CreatedAt,
+		IsFavorite:   r.IsFavorite,
+		IsActive:     r.IsActive,
 	}
-	r.Headers = map[string]string{}
-	if headersJSON != "" {
-		_ = json.Unmarshal([]byte(headersJSON), &r.Headers)
-	}
-	r.IsFavorite = isFav != 0
-	r.IsActive = isActive != 0
-	return r, nil
 }
 
-const requestSelectCols = `id, name, collection_id, folder_id, url, method, headers, body, created_at, updated_at, is_favorite, is_active`
-
-func nullableID(id string) any {
-	if strings.TrimSpace(id) == "" {
-		return nil
+func mapRequests(in []store.Request) []Request {
+	out := []Request{}
+	for _, r := range in {
+		out = append(out, toRequest(r))
 	}
-	return id
+	return out
 }
 
 func (s *RequestsService) FindAll(page, limit int) ([]Request, error) {
-	if page < 1 {
-		page = 1
-	}
-	if limit < 1 {
-		limit = 10
-	}
-	offset := (page - 1) * limit
-	rows, err := s.store.DB.Query(
-		`SELECT `+requestSelectCols+` FROM requests ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-		limit, offset,
-	)
+	reqs, err := s.store.ListRequests()
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	out := []Request{}
-	for rows.Next() {
-		r, err := scanRequest(rows)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, r)
-	}
-	return out, rows.Err()
+	byCreatedDesc(reqs, func(r store.Request) string { return r.CreatedAt })
+	return mapRequests(paginate(reqs, page, limit)), nil
 }
 
 func (s *RequestsService) FindByCollectionID(collectionID string, page, limit int) ([]Request, error) {
-	if page < 1 {
-		page = 1
-	}
-	if limit < 1 {
-		limit = 10
-	}
-	offset := (page - 1) * limit
-	rows, err := s.store.DB.Query(
-		`SELECT `+requestSelectCols+` FROM requests
-		 WHERE collection_id = ?
-		 ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-		collectionID, limit, offset,
-	)
+	reqs, err := s.store.ListRequestsByCollection(collectionID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	out := []Request{}
-	for rows.Next() {
-		r, err := scanRequest(rows)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, r)
-	}
-	return out, rows.Err()
+	byCreatedDesc(reqs, func(r store.Request) string { return r.CreatedAt })
+	return mapRequests(paginate(reqs, page, limit)), nil
 }
 
 func (s *RequestsService) FindByFolderID(folderID string, page, limit int) ([]Request, error) {
-	if page < 1 {
-		page = 1
-	}
-	if limit < 1 {
-		limit = 10
-	}
-	offset := (page - 1) * limit
-	rows, err := s.store.DB.Query(
-		`SELECT `+requestSelectCols+` FROM requests
-		 WHERE folder_id = ?
-		 ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-		folderID, limit, offset,
-	)
+	reqs, err := s.store.ListRequestsByFolder(folderID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	out := []Request{}
-	for rows.Next() {
-		r, err := scanRequest(rows)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, r)
-	}
-	return out, rows.Err()
+	byCreatedDesc(reqs, func(r store.Request) string { return r.CreatedAt })
+	return mapRequests(paginate(reqs, page, limit)), nil
 }
 
 func (s *RequestsService) FindByQuery(query string, page, limit int) ([]Request, error) {
-	if page < 1 {
-		page = 1
-	}
-	if limit < 1 {
-		limit = 10
-	}
-	offset := (page - 1) * limit
-	like := "%" + query + "%"
-	rows, err := s.store.DB.Query(
-		`SELECT `+requestSelectCols+` FROM requests
-		 WHERE name LIKE ? OR url LIKE ?
-		 ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-		like, like, limit, offset,
-	)
+	reqs, err := s.store.SearchRequests(query)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	out := []Request{}
-	for rows.Next() {
-		r, err := scanRequest(rows)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, r)
-	}
-	return out, rows.Err()
+	byCreatedDesc(reqs, func(r store.Request) string { return r.CreatedAt })
+	return mapRequests(paginate(reqs, page, limit)), nil
 }
 
 func (s *RequestsService) FindByID(id string) (Request, error) {
-	row := s.store.DB.QueryRow(
-		`SELECT `+requestSelectCols+` FROM requests WHERE id = ?`, id,
-	)
-	r, err := scanRequest(row)
-	if errors.Is(err, sql.ErrNoRows) {
+	r, err := s.store.GetRequest(id)
+	if errors.Is(err, store.ErrNotFound) {
 		return Request{}, fmt.Errorf("request não encontrado")
 	}
-	return r, err
-}
-
-func (s *RequestsService) Create(input RequestInput) (Request, error) {
-	if input.Headers == nil {
-		input.Headers = map[string]string{}
-	}
-	headersJSON, err := json.Marshal(input.Headers)
 	if err != nil {
 		return Request{}, err
 	}
-	now := time.Now().UTC().Format(time.RFC3339)
-	r := Request{
-		ID:           uuid.NewString(),
+	return toRequest(r), nil
+}
+
+func (s *RequestsService) Create(input RequestInput) (Request, error) {
+	r, err := s.store.CreateRequest(store.Request{
 		Name:         input.Name,
 		CollectionID: input.CollectionID,
 		FolderID:     strings.TrimSpace(input.FolderID),
@@ -263,41 +160,33 @@ func (s *RequestsService) Create(input RequestInput) (Request, error) {
 		Method:       input.Method,
 		Headers:      input.Headers,
 		Body:         input.Body,
-		CreatedAt:    now,
-		UpdatedAt:    now,
-		IsFavorite:   false,
-		IsActive:     true,
+	})
+	if errors.Is(err, store.ErrNotFound) {
+		return Request{}, fmt.Errorf("coleção não encontrada")
 	}
-	_, err = s.store.DB.Exec(
-		`INSERT INTO requests (id, name, collection_id, folder_id, url, method, headers, body, created_at, updated_at, is_favorite, is_active)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1)`,
-		r.ID, r.Name, r.CollectionID, nullableID(r.FolderID), r.URL, r.Method, string(headersJSON), r.Body, r.CreatedAt, r.UpdatedAt,
-	)
 	if err != nil {
 		return Request{}, err
 	}
-	return r, nil
+	return toRequest(r), nil
 }
 
 func (s *RequestsService) Update(id string, input RequestUpdate) error {
-	if input.Headers == nil {
-		input.Headers = map[string]string{}
+	err := s.store.UpdateRequest(id, store.Request{
+		Name:     input.Name,
+		FolderID: strings.TrimSpace(input.FolderID),
+		URL:      input.URL,
+		Method:   input.Method,
+		Headers:  input.Headers,
+		Body:     input.Body,
+	})
+	if errors.Is(err, store.ErrNotFound) {
+		return fmt.Errorf("request não encontrado")
 	}
-	headersJSON, err := json.Marshal(input.Headers)
-	if err != nil {
-		return err
-	}
-	now := time.Now().UTC().Format(time.RFC3339)
-	_, err = s.store.DB.Exec(
-		`UPDATE requests SET name = ?, folder_id = ?, url = ?, method = ?, headers = ?, body = ?, updated_at = ? WHERE id = ?`,
-		input.Name, nullableID(input.FolderID), input.URL, input.Method, string(headersJSON), input.Body, now, id,
-	)
 	return err
 }
 
 func (s *RequestsService) Delete(id string) error {
-	_, err := s.store.DB.Exec(`DELETE FROM requests WHERE id = ?`, id)
-	return err
+	return s.store.DeleteRequest(id)
 }
 
 func (s *RequestsService) Send(config RequestConfig) (ResponseData, error) {

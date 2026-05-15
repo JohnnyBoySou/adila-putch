@@ -1,10 +1,10 @@
-# Coffeeholic - API Client
+# putch - API Client
 
 Um clone leve e rápido do Insomnia feito com **Go (Wails 3)**, **React**, **Vite** e **TailwindCSS**.
 
 ## 📋 Pré-requisitos
 
-1. **Go 1.26+** — https://go.dev/dl/
+1. **Go 1.25+** — https://go.dev/dl/
 2. **Bun** — https://bun.sh
 3. **Wails 3 CLI** (alpha)
    ```bash
@@ -35,7 +35,7 @@ A aplicação:
 ## 📁 Estrutura
 
 ```
-coffeeholic/
+putch/
 ├── main.go                   # Entry point Wails
 ├── internal/
 │   ├── db/                   # SQLite (modernc.org/sqlite, puro Go)
@@ -62,5 +62,5 @@ coffeeholic/
 ## 💡 Dicas
 
 - Bindings TS são geradas automaticamente a partir das structs/methods Go
-- O DB SQLite fica em `$XDG_CONFIG_HOME/coffeeholic/coffeeholic.db` (ou equivalente por OS)
+- O DB SQLite fica em `$XDG_CONFIG_HOME/putch/putch.db` (ou equivalente por OS)
 - Para regenerar bindings manualmente: `wails3 generate bindings -clean=true`

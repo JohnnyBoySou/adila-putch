@@ -1,0 +1,15 @@
+{
+  "files.exclude": {
+    "bindings": true,
+    "dist": true,
+    "node_modules": true,
+    "tsconfig.node.json": true,
+    "tsconfig.node.tsbuildinfo": true,
+    "tsconfig.tsbuildinfo": true,
+    "vite.config.d.ts": true,
+    ".oxfmtrc.json": true,
+    ".oxlintrc.json": true,
+    "components.json": true,
+    "bun.lock": true
+  }
+}
