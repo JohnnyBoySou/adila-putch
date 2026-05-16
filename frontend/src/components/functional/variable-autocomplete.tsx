@@ -8,7 +8,6 @@ interface VariableAutocompleteProps {
   placeholder?: string;
   className?: string;
   as?: "input" | "textarea";
-  collectionId?: string;
 }
 
 export interface VariableAutocompleteRef {
@@ -16,7 +15,7 @@ export interface VariableAutocompleteRef {
 }
 
 const VariableAutocomplete = forwardRef<VariableAutocompleteRef, VariableAutocompleteProps>(
-  ({ value, onChange, onBlur, placeholder, className = "", as = "input", collectionId }, ref) => {
+  ({ value, onChange, onBlur, placeholder, className = "", as = "input" }, ref) => {
     const [showDropdown, setShowDropdown] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(0);
     const [cursorPosition, setCursorPosition] = useState(0);
@@ -25,15 +24,11 @@ const VariableAutocomplete = forwardRef<VariableAutocompleteRef, VariableAutocom
     const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    // Load all variables from environments in the current collection
+    // Carrega as variáveis de todos os environments do workspace ativo.
     useEffect(() => {
       const loadVariables = async () => {
-        if (!collectionId) {
-          setVariables([]);
-          return;
-        }
         try {
-          const environments = await EnvironmentService.findAll(collectionId);
+          const environments = await EnvironmentService.findAll();
           const allVariables = new Set<string>();
           environments.forEach((env) => {
             Object.keys(env.variables).forEach((key) => allVariables.add(key));
@@ -45,7 +40,7 @@ const VariableAutocomplete = forwardRef<VariableAutocompleteRef, VariableAutocom
         }
       };
       loadVariables();
-    }, [collectionId]);
+    }, []);
 
     const handleInputChange = (newValue: string, cursorPos?: number) => {
       onChange(newValue);

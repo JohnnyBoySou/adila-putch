@@ -1,8 +1,8 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
-export type Theme = "ultra-dark" | "ultra-white";
+export type Theme = "ultra-dark" | "ultra-white" | "off-white";
 
-const THEMES: Theme[] = ["ultra-dark", "ultra-white"];
+const THEMES: Theme[] = ["ultra-dark", "ultra-white", "off-white"];
 const STORAGE_KEY = "theme";
 
 interface ThemeContextType {

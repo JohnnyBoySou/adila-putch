@@ -1,4 +1,7 @@
 import { useState, useEffect } from "react";
+import { PlusIcon, XIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 interface VariablesEditorProps {
   variables: Record<string, string>;
@@ -7,7 +10,7 @@ interface VariablesEditorProps {
 
 export default function VariablesEditor({ variables, onChange }: VariablesEditorProps) {
   const [variableEntries, setVariableEntries] = useState<Array<{ key: string; value: string }>>(
-    Object.entries(variables).map(([key, value]) => ({ key, value }))
+    Object.entries(variables).map(([key, value]) => ({ key, value })),
   );
 
   useEffect(() => {
@@ -48,43 +51,44 @@ export default function VariablesEditor({ variables, onChange }: VariablesEditor
   return (
     <div className="space-y-2">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-sm font-semibold text-gray-700">Variables</h3>
-        <button
-          onClick={addVariable}
-          className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-        >
-          + Add Variable
-        </button>
+        <h3 className="text-sm font-semibold text-foreground">Variáveis</h3>
+        <Button size="sm" onClick={addVariable}>
+          <PlusIcon className="h-4 w-4" />
+          Adicionar variável
+        </Button>
       </div>
 
       {variableEntries.length === 0 ? (
-        <div className="text-center py-8 text-gray-500 text-sm">
-          <p>No variables. Click "Add Variable" to add one.</p>
+        <div className="text-center py-8 text-muted-foreground text-sm">
+          <p>Nenhuma variável. Clique em "Adicionar variável".</p>
         </div>
       ) : (
         <div className="space-y-2">
           {variableEntries.map((variable, index) => (
             <div key={index} className="flex gap-2">
-              <input
+              <Input
                 type="text"
                 value={variable.key}
                 onChange={(e) => updateVariable(index, "key", e.target.value)}
-                placeholder="Variable name"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                placeholder="Nome da variável"
+                className="flex-1"
               />
-              <input
+              <Input
                 type="text"
                 value={variable.value}
                 onChange={(e) => updateVariable(index, "value", e.target.value)}
-                placeholder="Variable value"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                placeholder="Valor da variável"
+                className="flex-1"
               />
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => removeVariable(index)}
-                className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                className="bg-transparent text-muted-foreground hover:text-destructive"
+                aria-label="Remover variável"
               >
-                ×
-              </button>
+                <XIcon className="h-4 w-4" />
+              </Button>
             </div>
           ))}
         </div>
@@ -92,4 +96,3 @@ export default function VariablesEditor({ variables, onChange }: VariablesEditor
     </div>
   );
 }
-

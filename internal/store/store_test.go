@@ -20,7 +20,18 @@ func TestRoundtrip(t *testing.T) {
 		t.Fatalf(".gitignore sem %q: %q", gitignoreLine, gi)
 	}
 
-	col, err := s.CreateCollection("Minha API")
+	// OpenAt já garante um workspace "Padrão" ativo; aqui criamos um com
+	// slug previsível para checar os caminhos físicos.
+	ws, err := s.CreateWorkspace(WorkspaceInput{Name: "WS"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetWorkspace(ws.ID); err != nil {
+		t.Fatal(err)
+	}
+	wsRoot := filepath.Join(root, "ws")
+
+	col, err := s.CreateCollection(CollectionInput{Name: "Minha API"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +60,7 @@ func TestRoundtrip(t *testing.T) {
 	}
 
 	// body deve estar como bloco literal YAML (diff-friendly), não escapado
-	reqRaw, _ := os.ReadFile(filepath.Join(root, "minha-api", "auth", "list-users.yml"))
+	reqRaw, _ := os.ReadFile(filepath.Join(wsRoot, "minha-api", "auth", "list-users.yml"))
 	if !strings.Contains(string(reqRaw), "body: |") {
 		t.Fatalf("body não saiu como bloco literal:\n%s", reqRaw)
 	}
@@ -57,16 +68,20 @@ func TestRoundtrip(t *testing.T) {
 		t.Fatalf("collection_id não deveria ser persistido:\n%s", reqRaw)
 	}
 
-	// environment: token deve ir para .local.yml (gitignored), base fica versionado
-	env, err := s.CreateEnvironment(col.ID, "dev", map[string]string{
-		"base":  "https://api.dev.example.com",
-		"token": "super-secret-xyz",
+	// environment: agora é nível de workspace; token vai para .local.yml
+	// (gitignored), base fica versionado
+	env, err := s.CreateEnvironment(EnvironmentInput{
+		Name: "dev",
+		Variables: map[string]string{
+			"base":  "https://api.dev.example.com",
+			"token": "super-secret-xyz",
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	envYML, _ := os.ReadFile(filepath.Join(root, "minha-api", "environments", "dev.yml"))
-	envLocal, _ := os.ReadFile(filepath.Join(root, "minha-api", "environments", "dev.local.yml"))
+	envYML, _ := os.ReadFile(filepath.Join(wsRoot, "environments", "dev.yml"))
+	envLocal, _ := os.ReadFile(filepath.Join(wsRoot, "environments", "dev.local.yml"))
 	if strings.Contains(string(envYML), "super-secret-xyz") {
 		t.Fatalf("segredo vazou no arquivo versionado:\n%s", envYML)
 	}
@@ -95,7 +110,7 @@ func TestRoundtrip(t *testing.T) {
 	if after.ID != req.ID || after.Name != "List All Users" {
 		t.Fatalf("update divergiu: %+v", after)
 	}
-	if _, err := os.Stat(filepath.Join(root, "minha-api", "auth", "list-users.yml")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(wsRoot, "minha-api", "auth", "list-users.yml")); !os.IsNotExist(err) {
 		t.Fatalf("arquivo antigo deveria ter sido renomeado")
 	}
 

@@ -2,13 +2,15 @@ import { EnvironmentsService as Wails } from "@bindings/services";
 
 export type { Environment } from "@bindings/services";
 
+// Environments agora são de workspace (compartilhados por todas as collections
+// do workspace ativo). O backend escopa pelo workspace ativo do store.
 export const EnvironmentService = {
-  findAll(collectionId?: string) {
-    return Wails.FindAll(collectionId ?? "");
+  findAll() {
+    return Wails.FindAll();
   },
 
-  create(collectionId: string, name: string, variables: Record<string, string>) {
-    return Wails.Create(collectionId, name, variables);
+  create(name: string, variables: Record<string, string>) {
+    return Wails.Create(name, variables);
   },
 
   delete(id: string) {

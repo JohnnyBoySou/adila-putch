@@ -1,18 +1,20 @@
 import { useState, useRef } from "react";
-import VariableAutocomplete, { VariableAutocompleteRef } from "@/components/functional/variable-autocomplete";
+import VariableAutocomplete, {
+  VariableAutocompleteRef,
+} from "@/components/functional/variable-autocomplete";
+import CodeEditor from "@/components/functional/code-editor";
+import { Button } from "@/components/ui/button";
 import { Variable } from "lucide-react";
-import { motion } from "motion/react";
 
 interface BodyEditorProps {
   body: string;
   method: string;
   onChange: (body: string) => void;
-  collectionId?: string;
 }
 
 const BODY_TYPES = ["JSON", "Text", "XML", "Form Data"];
 
-export default function BodyEditor({ body, method, onChange, collectionId }: BodyEditorProps) {
+export default function BodyEditor({ body, method, onChange }: BodyEditorProps) {
   const [bodyType, setBodyType] = useState<string>("JSON");
   const [isValidJson, setIsValidJson] = useState(true);
   const bodyInputRef = useRef<VariableAutocompleteRef>(null);
@@ -21,8 +23,8 @@ export default function BodyEditor({ body, method, onChange, collectionId }: Bod
 
   if (!hasBody) {
     return (
-      <div className="text-center py-8 text-gray-500 text-sm">
-        <p>{method} requests typically don't have a body.</p>
+      <div className="text-center py-8 text-muted-foreground text-sm">
+        <p>Requests {method} normalmente não têm body.</p>
       </div>
     );
   }
@@ -45,7 +47,7 @@ export default function BodyEditor({ body, method, onChange, collectionId }: Bod
       onChange(JSON.stringify(parsed, null, 2));
       setIsValidJson(true);
     } catch {
-      // Invalid JSON, can't format
+      // JSON inválido, não dá para formatar
     }
   };
 
@@ -54,65 +56,71 @@ export default function BodyEditor({ body, method, onChange, collectionId }: Bod
       <div className="flex justify-between items-center mb-4">
         <div className="flex gap-2">
           {BODY_TYPES.map((type) => (
-            <button
+            <Button
               key={type}
+              size="sm"
+              variant={bodyType === type ? "default" : "ghost"}
               onClick={() => setBodyType(type)}
-              className={`px-3 py-1 text-sm rounded transition-colors ${
-                bodyType === type
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-              }`}
             >
               {type}
-            </button>
+            </Button>
           ))}
         </div>
         {bodyType === "JSON" && (
-          <button
-            onClick={formatJson}
-            className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
-          >
-            Format JSON
-          </button>
+          <Button size="sm" variant="outline" onClick={formatJson}>
+            Formatar JSON
+          </Button>
         )}
       </div>
 
-      <div className="flex-1 border border-gray-300 rounded-lg overflow-hidden relative">
-        <VariableAutocomplete
-          ref={bodyInputRef}
-          value={body}
-          onChange={(value) => handleBodyChange(value)}
-          as="textarea"
-          className={`w-full h-full p-3 pr-10 font-mono text-sm resize-none focus:outline-none ${
-            bodyType === "JSON" && !isValidJson ? "bg-red-50 border-red-300" : ""
+      {bodyType === "JSON" ? (
+        // JSON usa o CodeMirror (syntax highlight, line numbers, fold).
+        // O autocomplete de variáveis `{{}}` depende de manipulação direta
+        // de selection em <textarea>/<input>, incompatível com o modelo de
+        // documento do CodeMirror — por isso não está disponível neste modo.
+        <div
+          className={`flex-1 overflow-hidden relative ${
+            !isValidJson && body.trim() !== "" ? "ring-1 ring-destructive rounded-md" : ""
           }`}
-          placeholder={
-            bodyType === "JSON"
-              ? '{\n  "key": "value"\n}'
-              : bodyType === "XML"
-              ? '<?xml version="1.0"?>\n<root></root>'
-              : "Enter body content..."
-          }
-          collectionId={collectionId}
-        />
-        <motion.button
-          type="button"
-          onClick={() => bodyInputRef.current?.openVariableMenu()}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.95 }}
-          className="absolute top-2 right-2 p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors z-10"
-          title="Insert variable (Ctrl+Space)"
         >
-          <Variable size={16} />
-        </motion.button>
-      </div>
+          <CodeEditor
+            value={body}
+            onChange={handleBodyChange}
+            language="json"
+            placeholder={'{\n  "key": "value"\n}'}
+            className="h-full"
+          />
+        </div>
+      ) : (
+        <div className="flex-1 border border-border rounded-lg overflow-hidden relative">
+          <VariableAutocomplete
+            ref={bodyInputRef}
+            value={body}
+            onChange={(value) => handleBodyChange(value)}
+            as="textarea"
+            className="w-full h-full p-3 pr-10 font-mono text-sm resize-none bg-transparent text-foreground placeholder:text-muted-foreground focus:outline-none"
+            placeholder={
+              bodyType === "XML"
+                ? '<?xml version="1.0"?>\n<root></root>'
+                : "Digite o conteúdo do body..."
+            }
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => bodyInputRef.current?.openVariableMenu()}
+            className="absolute top-2 right-2 h-7 w-7 bg-transparent text-muted-foreground hover:text-foreground"
+            title="Inserir variável (Ctrl+Space)"
+          >
+            <Variable size={16} />
+          </Button>
+        </div>
+      )}
 
       {bodyType === "JSON" && !isValidJson && body.trim() !== "" && (
-        <div className="mt-2 text-sm text-red-600">
-          Invalid JSON syntax
-        </div>
+        <div className="mt-2 text-sm text-destructive">Sintaxe JSON inválida</div>
       )}
     </div>
   );
 }
-

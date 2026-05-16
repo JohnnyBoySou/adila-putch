@@ -1,15 +1,20 @@
 import { useState, useEffect } from "react";
+import { PlusIcon, XIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import VariableAutocomplete from "@/components/functional/variable-autocomplete";
 
 interface QueryParamsEditorProps {
   params: Record<string, string>;
   onChange: (params: Record<string, string>) => void;
-  collectionId?: string;
 }
 
-export default function QueryParamsEditor({ params, onChange, collectionId }: QueryParamsEditorProps) {
+const autocompleteClass =
+  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+
+export default function QueryParamsEditor({ params, onChange }: QueryParamsEditorProps) {
   const [paramEntries, setParamEntries] = useState<Array<{ key: string; value: string }>>(
-    Object.entries(params).map(([key, value]) => ({ key, value }))
+    Object.entries(params).map(([key, value]) => ({ key, value })),
   );
 
   useEffect(() => {
@@ -50,43 +55,43 @@ export default function QueryParamsEditor({ params, onChange, collectionId }: Qu
   return (
     <div className="space-y-2">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-sm font-semibold text-gray-700">Query Parameters</h3>
-        <button
-          onClick={addParam}
-          className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-        >
-          + Add Parameter
-        </button>
+        <h3 className="text-sm font-semibold text-foreground">Query Parameters</h3>
+        <Button size="sm" onClick={addParam}>
+          <PlusIcon className="h-4 w-4" />
+          Adicionar parâmetro
+        </Button>
       </div>
 
       {paramEntries.length === 0 ? (
-        <div className="text-center py-8 text-gray-500 text-sm">
-          <p>No parameters. Click "Add Parameter" to add one.</p>
+        <div className="text-center py-8 text-muted-foreground text-sm">
+          <p>Nenhum parâmetro. Clique em "Adicionar parâmetro".</p>
         </div>
       ) : (
         <div className="space-y-2">
           {paramEntries.map((param, index) => (
             <div key={index} className="flex gap-2">
-              <input
+              <Input
                 type="text"
                 value={param.key}
                 onChange={(e) => updateParam(index, "key", e.target.value)}
-                placeholder="Parameter name"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                placeholder="Nome do parâmetro"
+                className="flex-1"
               />
               <VariableAutocomplete
                 value={param.value}
                 onChange={(value) => updateParam(index, "value", value)}
-                placeholder="Parameter value"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                collectionId={collectionId}
+                placeholder="Valor do parâmetro"
+                className={autocompleteClass}
               />
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => removeParam(index)}
-                className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                className="bg-transparent text-muted-foreground hover:text-destructive"
+                aria-label="Remover parâmetro"
               >
-                ×
-              </button>
+                <XIcon className="h-4 w-4" />
+              </Button>
             </div>
           ))}
         </div>
@@ -94,4 +99,3 @@ export default function QueryParamsEditor({ params, onChange, collectionId }: Qu
     </div>
   );
 }
-

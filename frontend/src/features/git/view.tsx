@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
-import { Events } from "@wailsio/runtime";
+import { Column, Container, Label, Title } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { ErrorAlert } from "@/components/functional/error-alert";
 import { useSync } from "@/hooks/useSync";
+import { Events } from "@wailsio/runtime";
+import { useEffect, useState } from "react";
 
 const STATUS_LABEL: Record<string, string> = {
   added: "adicionado",
@@ -86,20 +88,12 @@ export default function GitView() {
   };
 
   return (
-    <div className="h-screen overflow-y-auto p-6">
-      <div className="mx-auto max-w-3xl space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Sincronização</h1>
-          <p className="text-sm text-gray-500">
-            Versione suas collections com git e colabore via GitHub.
-          </p>
-        </div>
+    <Container className="p-6">
+      <Column>
+        <Title>Sincronização</Title>
+        <Label>Versione suas collections com git e colabore via GitHub.</Label>
 
-        {error && (
-          <div className="rounded border border-red-400 bg-red-100 p-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+        {error && <ErrorAlert message={error} />}
 
         {/* Conta GitHub */}
         <Card>
@@ -257,7 +251,7 @@ export default function GitView() {
         {status?.conflicted && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-red-700">Conflito de merge</CardTitle>
+              <CardTitle className="text-destructive">Conflito de merge</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-sm text-muted-foreground">
@@ -356,7 +350,7 @@ export default function GitView() {
             </CardContent>
           </Card>
         )}
-      </div>
-    </div>
+      </Column>
+    </Container>
   );
 }

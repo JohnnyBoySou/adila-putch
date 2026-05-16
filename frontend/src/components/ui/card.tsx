@@ -1,5 +1,5 @@
-import * as React from "react";
 import { motion, type HTMLMotionProps } from "motion/react";
+import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -7,11 +7,7 @@ const Card = React.forwardRef<HTMLDivElement, HTMLMotionProps<"div">>(
   ({ className, ...props }, ref) => (
     <motion.div
       ref={ref}
-      className={cn(
-        "rounded-xl border bg-card text-card-foreground shadow transition-shadow",
-        className,
-      )}
-      whileHover={{ y: -2, boxShadow: "0 8px 24px -8px rgb(0 0 0 / 0.18)" }}
+      className={cn("rounded-xl border bg-card text-card-foreground  transition-shadow", className)}
       transition={{ type: "spring", stiffness: 300, damping: 24 }}
       {...props}
     />
@@ -39,7 +35,7 @@ CardTitle.displayName = "CardTitle";
 
 const CardDescription = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("text-sm text-muted-foreground", className)} {...props} />
+    <div ref={ref} className={cn("text-sm text-text opacity-90", className)} {...props} />
   ),
 );
 CardDescription.displayName = "CardDescription";
@@ -58,4 +54,4 @@ const CardFooter = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDiv
 );
 CardFooter.displayName = "CardFooter";
 
-export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent };
+export { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle };

@@ -15,35 +15,36 @@ function loadInitial(): Record<string, string> {
 }
 
 interface SelectedEnvironmentState {
-  byCollection: Record<string, string>;
-  setSelectedEnvironmentId: (id: string | null, collectionId: string) => void;
+  // Environments são de workspace; a seleção ativa é por workspace.
+  byWorkspace: Record<string, string>;
+  setSelectedEnvironmentId: (id: string | null, workspaceId: string) => void;
 }
 
 export const useSelectedEnvironmentStore = create<SelectedEnvironmentState>((set) => ({
-  byCollection: loadInitial(),
+  byWorkspace: loadInitial(),
 
-  setSelectedEnvironmentId: (id, collectionId) => {
+  setSelectedEnvironmentId: (id, workspaceId) => {
     if (id) {
-      localStorage.setItem(`${STORAGE_PREFIX}${collectionId}`, id);
+      localStorage.setItem(`${STORAGE_PREFIX}${workspaceId}`, id);
     } else {
-      localStorage.removeItem(`${STORAGE_PREFIX}${collectionId}`);
+      localStorage.removeItem(`${STORAGE_PREFIX}${workspaceId}`);
     }
     set((s) => {
-      const next = { ...s.byCollection };
+      const next = { ...s.byWorkspace };
       if (id) {
-        next[collectionId] = id;
+        next[workspaceId] = id;
       } else {
-        delete next[collectionId];
+        delete next[workspaceId];
       }
-      return { byCollection: next };
+      return { byWorkspace: next };
     });
   },
 }));
 
-/** Reactive selector: re-renders only when this collection's selection changes. */
-export function useSelectedEnvironmentId(collectionId: string | undefined): string | null {
+/** Reactive selector: re-renders only when this workspace's selection changes. */
+export function useSelectedEnvironmentId(workspaceId: string | undefined): string | null {
   return useSelectedEnvironmentStore((s) =>
-    collectionId ? (s.byCollection[collectionId] ?? null) : null,
+    workspaceId ? (s.byWorkspace[workspaceId] ?? null) : null,
   );
 }
 

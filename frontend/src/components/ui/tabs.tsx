@@ -1,6 +1,6 @@
-import * as React from "react";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { motion } from "motion/react";
+import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -73,11 +73,18 @@ const TabsTrigger = React.forwardRef<
       {isActive && ctx && (
         <motion.span
           layoutId={ctx.layoutId}
-          className="absolute inset-0 z-0 rounded-md bg-background shadow"
+          className="absolute inset-0 z-0 rounded-md bg-foreground"
           transition={{ type: "spring", stiffness: 380, damping: 30 }}
         />
       )}
-      <span className="relative z-10 inline-flex items-center gap-1.5">{children}</span>
+      <span
+        className={cn(
+          isActive ? "text-background" : "text-foreground",
+          "relative z-10 inline-flex items-center gap-1.5",
+        )}
+      >
+        {children}
+      </span>
     </TabsPrimitive.Trigger>
   );
 });
@@ -87,15 +94,8 @@ const TabsContent = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.Content>
 >(({ className, ...props }, ref) => (
-  <TabsPrimitive.Content
-    ref={ref}
-    className={cn(
-      "mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-      className,
-    )}
-    {...props}
-  />
+  <TabsPrimitive.Content ref={ref} className={cn(className)} {...props} />
 ));
 TabsContent.displayName = TabsPrimitive.Content.displayName;
 
-export { Tabs, TabsList, TabsTrigger, TabsContent };
+export { Tabs, TabsContent, TabsList, TabsTrigger };

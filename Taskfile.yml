@@ -28,9 +28,91 @@ tasks:
       - task: "{{OS}}:run"
 
   dev:
-    summary: Runs the application in development mode
+    summary: 'Runs the application in development mode (barra de progresso limpa; logs completos com `task dev -- --verbose` ou `task dev VERBOSE=1`)'
+    silent: true
     cmds:
-      - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
+      - bash ./build/dev.sh {{.CLI_ARGS}}
+    env:
+      VITE_PORT: '{{.VITE_PORT}}'
+      VERBOSE_VAR: '{{.VERBOSE | default ""}}'
+
+  fmt:
+    summary: Formats the Go backend with gofmt
+    cmds:
+      - gofmt -w .
+
+  fmt:check:
+    summary: Checks Go formatting (same check the CI runs); fails if any file is unformatted
+    cmds:
+      - |
+        unformatted=$(gofmt -l .)
+        if [ -n "$unformatted" ]; then
+          echo "Go files out of format:"
+          echo "$unformatted"
+          exit 1
+        fi
+        echo "gofmt: all Go files formatted"
+
+  vet:
+    summary: Runs go vet on the backend
+    cmds:
+      - go vet ./...
+
+  test:
+    summary: Runs the Go test suite (with -race, espelha o CI)
+    cmds:
+      - go test -race ./...
+
+  tidy:
+    summary: Tidies go.mod / go.sum
+    cmds:
+      - go mod tidy
+
+  lint:
+    summary: Lints the frontend with oxlint
+    dir: frontend
+    cmds:
+      - bun run lint
+
+  lint:fix:
+    summary: Lints the frontend with oxlint and applies fixes
+    dir: frontend
+    cmds:
+      - bun run lint:fix
+
+  bindings:
+    summary: Regenerates the Wails bindings (output is gitignored)
+    cmds:
+      - wails3 generate bindings -clean
+
+  clean:
+    summary: Removes build outputs (bin, frontend/dist, frontend/bindings)
+    cmds:
+      - rm -rf bin frontend/dist frontend/bindings
+
+  typecheck:
+    summary: Type-checks the frontend (tsc -b) — hard gate, matches CI
+    dir: frontend
+    cmds:
+      - bunx tsc -b
+
+  quality:
+    summary: Frontend lint + format report (oxlint + oxfmt --check) — informational
+    dir: frontend
+    cmds:
+      - bun run check
+
+  check:
+    summary: Local gate mirroring CI — blocking Go fmt/vet/test/build + frontend typecheck; lint/format informational (continue-on-error, like CI)
+    cmds:
+      - task: fmt:check
+      - task: vet
+      - go test -race ./...
+      - task: typecheck
+      - go build -o /tmp/putch-check .
+      - rm -f /tmp/putch-check
+      - task: quality
+        ignore_error: true
 
   setup:docker:
     summary: Builds Docker image for cross-compilation (~800MB download)

@@ -1,15 +1,20 @@
 import { useState } from "react";
+import { PlusIcon, XIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import VariableAutocomplete from "@/components/functional/variable-autocomplete";
 
 interface HeadersEditorProps {
   headers: Record<string, string>;
   onChange: (headers: Record<string, string>) => void;
-  collectionId?: string;
 }
 
-export default function HeadersEditor({ headers, onChange, collectionId }: HeadersEditorProps) {
+const autocompleteClass =
+  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+
+export default function HeadersEditor({ headers, onChange }: HeadersEditorProps) {
   const [headerEntries, setHeaderEntries] = useState<Array<{ key: string; value: string }>>(
-    Object.entries(headers).map(([key, value]) => ({ key, value }))
+    Object.entries(headers).map(([key, value]) => ({ key, value })),
   );
 
   const updateHeaders = (entries: Array<{ key: string; value: string }>) => {
@@ -40,43 +45,43 @@ export default function HeadersEditor({ headers, onChange, collectionId }: Heade
   return (
     <div className="space-y-2">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-sm font-semibold text-gray-700">HTTP Headers</h3>
-        <button
-          onClick={addHeader}
-          className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-        >
-          + Add Header
-        </button>
+        <h3 className="text-sm font-semibold text-foreground">HTTP Headers</h3>
+        <Button size="sm" onClick={addHeader}>
+          <PlusIcon className="h-4 w-4" />
+          Adicionar header
+        </Button>
       </div>
 
       {headerEntries.length === 0 ? (
-        <div className="text-center py-8 text-gray-500 text-sm">
-          <p>No headers. Click "Add Header" to add one.</p>
+        <div className="text-center py-8 text-muted-foreground text-sm">
+          <p>Nenhum header. Clique em "Adicionar header".</p>
         </div>
       ) : (
         <div className="space-y-2">
           {headerEntries.map((header, index) => (
             <div key={index} className="flex gap-2">
-              <input
+              <Input
                 type="text"
                 value={header.key}
                 onChange={(e) => updateHeader(index, "key", e.target.value)}
-                placeholder="Header name"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                placeholder="Nome do header"
+                className="flex-1"
               />
               <VariableAutocomplete
                 value={header.value}
                 onChange={(value) => updateHeader(index, "value", value)}
-                placeholder="Header value"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                collectionId={collectionId}
+                placeholder="Valor do header"
+                className={autocompleteClass}
               />
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => removeHeader(index)}
-                className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                className="bg-transparent text-muted-foreground hover:text-destructive"
+                aria-label="Remover header"
               >
-                ×
-              </button>
+                <XIcon className="h-4 w-4" />
+              </Button>
             </div>
           ))}
         </div>
@@ -84,4 +89,3 @@ export default function HeadersEditor({ headers, onChange, collectionId }: Heade
     </div>
   );
 }
-

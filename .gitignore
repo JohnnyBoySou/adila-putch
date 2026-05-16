@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# TypeScript incremental build cache — não versionar: um buildinfo defasado
+# faz `tsc -b` pular arquivos e mascarar erros reais (falso "verde").
+*.tsbuildinfo
+
 # Wails / Go
 bin/
 /putch

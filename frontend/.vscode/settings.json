@@ -10,6 +10,13 @@
     ".oxfmtrc.json": true,
     ".oxlintrc.json": true,
     "components.json": true,
-    "bun.lock": true
+    "bun.lock": true,
+    ".tanstack": true,
+    ".vscode": true,
+    "src/globals.css": true,
+    "src/routeTree.gen.ts": true,
+    "src/vite-env.d.ts": true,
+    "index.html": true,
+    "vite.config.js": true
   }
 }

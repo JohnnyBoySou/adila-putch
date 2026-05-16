@@ -8,11 +8,25 @@ import (
 )
 
 type Environment struct {
-	ID           string            `json:"id"`
-	Name         string            `json:"name"`
-	CollectionID string            `json:"collection_id"`
-	Variables    map[string]string `json:"variables"`
-	CreatedAt    string            `json:"created_at"`
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	WorkspaceID string            `json:"workspace_id"`
+	Description string            `json:"description"`
+	Pinned      bool              `json:"pinned"`
+	Deprecated  bool              `json:"deprecated"`
+	Variables   map[string]string `json:"variables"`
+	CreatedAt   string            `json:"created_at"`
+	UpdatedAt   string            `json:"updated_at"`
+}
+
+// EnvironmentInput são os campos editáveis enviados pela UI. CreatedAt/
+// UpdatedAt são geridos pelo store.
+type EnvironmentInput struct {
+	Name        string            `json:"name"`
+	Description string            `json:"description"`
+	Pinned      bool              `json:"pinned"`
+	Deprecated  bool              `json:"deprecated"`
+	Variables   map[string]string `json:"variables"`
 }
 
 type EnvironmentsService struct {
@@ -29,17 +43,22 @@ func toEnvironment(e store.Environment) Environment {
 		vars = map[string]string{}
 	}
 	return Environment{
-		ID:           e.ID,
-		Name:         e.Name,
-		CollectionID: e.CollectionID,
-		Variables:    vars,
-		CreatedAt:    e.CreatedAt,
+		ID:          e.ID,
+		Name:        e.Name,
+		WorkspaceID: e.WorkspaceID,
+		Description: e.Description,
+		Pinned:      e.Pinned,
+		Deprecated:  e.Deprecated,
+		Variables:   vars,
+		CreatedAt:   e.CreatedAt,
+		UpdatedAt:   e.UpdatedAt,
 	}
 }
 
-// FindAll returns environments. If collectionID is empty, returns all.
-func (s *EnvironmentsService) FindAll(collectionID string) ([]Environment, error) {
-	envs, err := s.store.ListEnvironments(collectionID)
+// FindAll retorna os environments do workspace ativo (compartilhados por
+// todas as collections do workspace).
+func (s *EnvironmentsService) FindAll() ([]Environment, error) {
+	envs, err := s.store.ListEnvironments()
 	if err != nil {
 		return nil, err
 	}
@@ -63,19 +82,34 @@ func (s *EnvironmentsService) FindByID(id string) (*Environment, error) {
 	return &env, nil
 }
 
-func (s *EnvironmentsService) Create(collectionID, name string, variables map[string]string) (Environment, error) {
-	if name == "" {
+func (s *EnvironmentsService) Create(in EnvironmentInput) (Environment, error) {
+	if strings.TrimSpace(in.Name) == "" {
 		return Environment{}, fmt.Errorf("nome do environment é obrigatório")
 	}
-	e, err := s.store.CreateEnvironment(collectionID, name, variables)
+	e, err := s.store.CreateEnvironment(store.EnvironmentInput{
+		Name:        strings.TrimSpace(in.Name),
+		Description: in.Description,
+		Pinned:      in.Pinned,
+		Deprecated:  in.Deprecated,
+		Variables:   in.Variables,
+	})
 	if err != nil {
 		return Environment{}, err
 	}
 	return toEnvironment(e), nil
 }
 
-func (s *EnvironmentsService) Update(id, name string, variables map[string]string) error {
-	return s.store.UpdateEnvironment(id, name, variables)
+func (s *EnvironmentsService) Update(id string, in EnvironmentInput) error {
+	if strings.TrimSpace(in.Name) == "" {
+		return fmt.Errorf("nome do environment é obrigatório")
+	}
+	return s.store.UpdateEnvironment(id, store.EnvironmentInput{
+		Name:        strings.TrimSpace(in.Name),
+		Description: in.Description,
+		Pinned:      in.Pinned,
+		Deprecated:  in.Deprecated,
+		Variables:   in.Variables,
+	})
 }
 
 func (s *EnvironmentsService) Delete(id string) error {
@@ -84,8 +118,27 @@ func (s *EnvironmentsService) Delete(id string) error {
 
 // Interpolate replaces {{key}} occurrences in text with values from variables.
 func (s *EnvironmentsService) Interpolate(text string, variables map[string]string) string {
-	for k, v := range variables {
-		text = strings.ReplaceAll(text, "{{"+k+"}}", v)
+	return interpolateVars(text, variables)
+}
+
+// interpolateVars troca cada {{chave}} em s pelo valor correspondente.
+// Compartilhado entre a interpolação de env (UI) e o encadeamento de testes.
+func interpolateVars(s string, vars map[string]string) string {
+	for k, v := range vars {
+		s = strings.ReplaceAll(s, "{{"+k+"}}", v)
 	}
-	return text
+	return s
+}
+
+// interpolateMap aplica interpolateVars nos valores de um mapa, devolvendo uma
+// cópia nova (nil/vazio passa direto, sem alocar).
+func interpolateMap(m, vars map[string]string) map[string]string {
+	if len(m) == 0 {
+		return m
+	}
+	out := make(map[string]string, len(m))
+	for k, v := range m {
+		out[k] = interpolateVars(v, vars)
+	}
+	return out
 }

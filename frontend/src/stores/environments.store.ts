@@ -2,30 +2,24 @@ import { type Environment, EnvironmentService } from "@/services/enviroments.ser
 import { create } from "zustand";
 
 interface EnvironmentsState {
-  collectionId: string | null;
   environments: Environment[];
   loading: boolean;
   error: string | null;
-  load: (collectionId?: string) => Promise<void>;
+  load: () => Promise<void>;
   create: (name: string, variables: Record<string, string>) => Promise<Environment>;
   remove: (id: string) => Promise<void>;
   update: (id: string, name: string, variables: Record<string, string>) => Promise<void>;
 }
 
-export const useEnvironmentsStore = create<EnvironmentsState>((set, get) => ({
-  collectionId: null,
+export const useEnvironmentsStore = create<EnvironmentsState>((set) => ({
   environments: [],
   loading: false,
   error: null,
 
-  load: async (collectionId) => {
-    if (!collectionId) {
-      set({ collectionId: null, environments: [] });
-      return;
-    }
-    set({ collectionId, loading: true, error: null });
+  load: async () => {
+    set({ loading: true, error: null });
     try {
-      const data = await EnvironmentService.findAll(collectionId);
+      const data = await EnvironmentService.findAll();
       set({ environments: data, loading: false });
     } catch (err) {
       set({
@@ -36,11 +30,9 @@ export const useEnvironmentsStore = create<EnvironmentsState>((set, get) => ({
   },
 
   create: async (name, variables) => {
-    const { collectionId } = get();
-    if (!collectionId) throw new Error("Collection ID is required");
     set({ error: null });
     try {
-      const created = await EnvironmentService.create(collectionId, name, variables);
+      const created = await EnvironmentService.create(name, variables);
       set((s) => ({ environments: [...s.environments, created] }));
       return created;
     } catch (err) {

@@ -15,6 +15,7 @@ export function useCollections() {
       createCollection: s.create,
       deleteCollection: s.remove,
       updateCollection: s.update,
+      importCollection: s.importFromFile,
     })),
   );
 }

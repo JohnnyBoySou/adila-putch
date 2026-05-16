@@ -17,14 +17,23 @@ import (
 var assets embed.FS
 
 func main() {
-	st, err := store.Open()
+	// Config compartilhado da suíte Adila primeiro: dele sai a pasta de
+	// workspace escolhida pelo usuário (se houver) antes de abrir o store.
+	cfg := config.New()
+
+	st, err := openWorkspace(cfg)
 	if err != nil {
 		log.Fatalf("falha ao abrir workspace: %v", err)
 	}
 
-	// Camada de colaboração: config compartilhado da suíte Adila → github
-	// (auth + API) + git (motor local) → SyncService (fachada para a UI).
-	cfg := config.New()
+	// Aplica o workspace ativo salvo no config (se ainda válido); senão
+	// permanece no que o store escolheu (mais recente / "Padrão").
+	if id, ok := cfg.Get(services.ConfigKeyActiveWorkspace, "").(string); ok && id != "" {
+		_ = st.SetWorkspace(id)
+	}
+
+	// Camada de colaboração: config → github (auth + API) + git (motor
+	// local) → SyncService (fachada para a UI).
 	gh := github.NewService(cfg)
 	gitSvc := git.NewService()
 	sync := services.NewSyncService(st, gitSvc, gh)
@@ -37,6 +46,9 @@ func main() {
 			application.NewService(services.NewFoldersService(st)),
 			application.NewService(services.NewRequestsService(st)),
 			application.NewService(services.NewEnvironmentsService(st)),
+			application.NewService(services.NewTestsService(st)),
+			application.NewService(services.NewWorkspaceService(st, cfg)),
+			application.NewService(services.NewWorkspacesService(st, cfg)),
 			application.NewService(sync),
 		},
 		Assets: application.AssetOptions{
@@ -59,6 +71,7 @@ func main() {
 		Title:            "putch",
 		Width:            800,
 		Height:           600,
+		Frameless:        true,
 		BackgroundColour: application.NewRGB(27, 38, 54),
 		URL:              "/",
 	})
@@ -66,4 +79,16 @@ func main() {
 	if err := app.Run(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// openWorkspace abre o store na pasta salva no config (se houver) ou no
+// padrão. Se a pasta salva falhar ao abrir (sumiu, sem permissão), cai no
+// padrão em vez de travar o app por uma preferência inválida.
+func openWorkspace(cfg *config.Config) (*store.Store, error) {
+	if p, ok := cfg.Get(services.ConfigKeyWorkspace, "").(string); ok && p != "" {
+		if st, err := store.OpenAt(p); err == nil {
+			return st, nil
+		}
+	}
+	return store.Open()
 }

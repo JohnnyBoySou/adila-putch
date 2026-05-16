@@ -1,83 +1,163 @@
-import { useState } from "react";
-import { getRouteApi } from "@tanstack/react-router";
-import { useEnvironments } from "../../hooks/useEnvironments";
-import EnvironmentsList from "./list";
-import EnvironmentCreate from "./create";
-import EnvironmentUpdate from "./update";
+import { ErrorAlert } from "@/components/functional/error-alert";
+import {
+  Column,
+  Container,
+  Input,
+  Row,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  Title,
+  Button,
+} from "@/components/ui";
+import { useEnvironments } from "@/hooks/useEnvironments";
+import { Environment } from "@/services/enviroments.service";
+import { useSelectedEnvironmentId } from "@/stores/selected-environment.store";
+import { useWorkspacesStore } from "@/stores/workspaces.store";
+import { GridIcon, ListIcon, PlusIcon, SearchIcon } from "lucide-react";
+import { useMemo, useState } from "react";
+import EnvironmentsEmpty from "./empty";
+import EnvironmentsList, { type ViewMode } from "./list";
+import EnvironmentsLoading from "./loading";
 
-const routeApi = getRouteApi("/panel/collections/$collectionId/environments/");
+type StatusFilter = "all" | "active" | "empty";
+type SortMode = "recent" | "name" | "vars";
+
+const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
+  { value: "all", label: "Todos" },
+  { value: "active", label: "Ativo" },
+  { value: "empty", label: "Vazios" },
+];
 
 export default function EnvironmentsView() {
-  const { collectionId } = routeApi.useParams();
-  const { environments, loading, error, createEnvironment, deleteEnvironment, updateEnvironment } =
-    useEnvironments();
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [showCreate, setShowCreate] = useState(false);
+  const { environments, loading, error } = useEnvironments();
 
-  const handleCreate = async (name: string, variables: Record<string, string>) => {
-    if (!collectionId) return;
-    await createEnvironment(name, variables);
-    setShowCreate(false);
-  };
+  const [view, setView] = useState<ViewMode>("grid");
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState<StatusFilter>("all");
+  const [sort, setSort] = useState<SortMode>("recent");
 
-  const handleUpdate = async (id: string, name: string, variables: Record<string, string>) => {
-    await updateEnvironment(id, name, variables);
-    setEditingId(null);
-  };
+  // O ambiente ativo é por workspace — mesma fonte de verdade do sidebar.
+  const workspaceId = useWorkspacesStore((s) => s.activeId) ?? "";
+  const selectedId = useSelectedEnvironmentId(workspaceId);
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this environment?")) {
-      await deleteEnvironment(id);
-    }
-  };
+  /**
+   * Busca textual, filtro de status e ordenação client-side sobre a lista já
+   * carregada no store. O ambiente ativo vem sempre antes dos demais.
+   */
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+
+    const filtered = environments.filter((e) => {
+      const count = Object.keys(e.variables ?? {}).length;
+      if (status === "active" && e.id !== selectedId) return false;
+      if (status === "empty" && count > 0) return false;
+      if (!q) return true;
+      return e.name.toLowerCase().includes(q);
+    });
+
+    const bySort = (a: Environment, b: Environment) => {
+      if (sort === "name") return a.name.localeCompare(b.name, "pt-BR");
+      if (sort === "vars") {
+        return (
+          Object.keys(b.variables ?? {}).length - Object.keys(a.variables ?? {}).length
+        );
+      }
+      // recent: criado mais recentemente primeiro
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    };
+
+    return [...filtered].sort((a, b) => {
+      const aActive = a.id === selectedId;
+      const bActive = b.id === selectedId;
+      if (aActive !== bActive) return aActive ? -1 : 1;
+      return bySort(a, b);
+    });
+  }, [environments, query, status, sort, selectedId]);
 
   if (loading && environments.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-gray-500">Loading environments...</div>
-      </div>
-    );
+    return <EnvironmentsLoading />;
+  }
+
+  if (environments.length === 0) {
+    return <EnvironmentsEmpty />;
   }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Environments</h1>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          + New Environment
-        </button>
-      </div>
+    <Container className="p-6">
+      <Column>
+        <Row className="justify-between items-center">
+          <Title>Variáveis de ambiente</Title>
+          <Button type="link" to="/panel/environments/create">
+            <PlusIcon className="w-4 h-4" />
+            Criar ambiente
+          </Button>
+        </Row>
 
-      {error && (
-        <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-          {error}
-        </div>
-      )}
+        {error && <ErrorAlert message={error} />}
 
-      {showCreate && (
-        <EnvironmentCreate
-          onSubmit={handleCreate}
-          onCancel={() => setShowCreate(false)}
-        />
-      )}
+        {/* Barra de controles: busca, filtro de status, ordenação e modo de exibição */}
+        <Row className="flex-wrap items-center gap-3">
+          <div className="relative min-w-56 flex-1">
+            <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar por nome"
+              aria-label="Buscar ambientes"
+              className="pl-9"
+            />
+          </div>
 
-      <EnvironmentsList
-        environments={environments}
-        onEdit={setEditingId}
-        onDelete={handleDelete}
-      />
+          <Tabs value={status} onValueChange={(v) => setStatus(v as StatusFilter)}>
+            <TabsList>
+              {STATUS_FILTERS.map((f) => (
+                <TabsTrigger key={f.value} value={f.value}>
+                  {f.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
 
-      {editingId && (
-        <EnvironmentUpdate
-          environment={environments.find((e) => e.id === editingId)!}
-          onSubmit={(name, variables) => handleUpdate(editingId, name, variables)}
-          onCancel={() => setEditingId(null)}
-        />
-      )}
-    </div>
+          <Select value={sort} onValueChange={(v) => setSort(v as SortMode)}>
+            <SelectTrigger className="w-44" aria-label="Ordenar ambientes">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="recent">Mais recentes</SelectItem>
+              <SelectItem value="name">Nome (A–Z)</SelectItem>
+              <SelectItem value="vars">Mais variáveis</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Tabs value={view} onValueChange={(v) => setView(v as ViewMode)}>
+            <TabsList>
+              <TabsTrigger value="list" aria-label="Visualizar em lista">
+                <ListIcon className="w-4 h-4" />
+              </TabsTrigger>
+              <TabsTrigger value="grid" aria-label="Visualizar em grade">
+                <GridIcon className="w-4 h-4" />
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </Row>
+
+        {visible.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border py-16 text-center">
+            <p className="text-sm font-medium">Nenhum ambiente encontrado</p>
+            <p className="text-xs text-muted-foreground">
+              Ajuste a busca ou os filtros para ver mais resultados.
+            </p>
+          </div>
+        ) : (
+          <EnvironmentsList environments={visible} view={view} />
+        )}
+      </Column>
+    </Container>
   );
 }
-

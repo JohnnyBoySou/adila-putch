@@ -1,4 +1,5 @@
 import { RequestService, type RequestConfig, type ResponseData } from "@/services/request.service";
+import { useHistoryStore } from "@/stores/history.store";
 import { useRequestsStore } from "@/stores/requests.store";
 import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
@@ -38,10 +39,14 @@ export function useRequestSender() {
     try {
       const data = await RequestService.send(config);
       setResponse(data);
+      // Registra a execução bem-sucedida no histórico (alimenta o diff também)
+      useHistoryStore.getState().record({ config, response: data });
       return data;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to send request";
       setError(errorMessage);
+      // Registra a falha no histórico (sem resposta)
+      useHistoryStore.getState().record({ config, error: errorMessage });
       throw err;
     } finally {
       setLoading(false);
