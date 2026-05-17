@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import {
   FlaskConical,
   Folder,
@@ -30,6 +30,10 @@ import { Kbd } from "@/components/ui/kbd";
 export default function CommandMenu() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  // `strict: false`: lê params da rota ativa sem amarrar a um id de rota.
+  // `collectionId` só existe sob /panel/collections/$collectionId/* — fora
+  // disso o comando "Nova request" não aparece (precisa de uma coleção alvo).
+  const { collectionId } = useParams({ strict: false });
 
   // Atalho global para abrir/fechar a paleta
   useEffect(() => {
@@ -117,6 +121,22 @@ export default function CommandMenu() {
           <CommandSeparator />
 
           <CommandGroup heading="Criar">
+            {collectionId ? (
+              <CommandItem
+                onSelect={() =>
+                  runCommand(() =>
+                    navigate({
+                      to: "/panel/collections/$collectionId/requests/create",
+                      params: { collectionId },
+                    }),
+                  )
+                }
+              >
+                <Plus />
+                <span>Nova request</span>
+                <CommandShortcut>Coleção atual</CommandShortcut>
+              </CommandItem>
+            ) : null}
             <CommandItem
               onSelect={() => runCommand(() => navigate({ to: "/panel/collections/create" }))}
             >

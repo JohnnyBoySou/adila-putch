@@ -43,6 +43,11 @@ function splitOnFirst(value: string): [string, string] {
   return [value.substring(0, idx), value.substring(idx + 1)];
 }
 
+// Mesmo estilo de input do design system usado em headers/params/editor —
+// VariableAutocomplete renderiza um <input> cru, então a classe vem do caller.
+const inputClass =
+  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+
 export default function AuthEditor({ authType, authValue, onChange }: AuthEditorProps) {
   const type = authType || "none";
 
@@ -92,6 +97,8 @@ export default function AuthEditor({ authType, authValue, onChange }: AuthEditor
             value={authValue}
             onChange={handleBearerChange}
             placeholder="meu-token-jwt"
+            className={inputClass}
+            secret
           />
         </div>
       )}
@@ -112,6 +119,8 @@ export default function AuthEditor({ authType, authValue, onChange }: AuthEditor
               value={basicPass}
               onChange={handleBasicPassChange}
               placeholder="senha"
+              className={inputClass}
+              secret
             />
           </div>
         </>
@@ -133,6 +142,8 @@ export default function AuthEditor({ authType, authValue, onChange }: AuthEditor
               value={apikeyValue}
               onChange={handleApikeyValueChange}
               placeholder="abc123"
+              className={inputClass}
+              secret
             />
           </div>
         </>

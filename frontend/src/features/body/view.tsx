@@ -4,6 +4,7 @@ import VariableAutocomplete, {
 } from "@/components/functional/variable-autocomplete";
 import CodeEditor from "@/components/functional/code-editor";
 import { Button } from "@/components/ui/button";
+import { PredictionService } from "@/services/prediction.service";
 import { Variable } from "lucide-react";
 
 interface BodyEditorProps {
@@ -89,6 +90,9 @@ export default function BodyEditor({ body, method, onChange }: BodyEditorProps) 
             language="json"
             placeholder={'{\n  "key": "value"\n}'}
             className="h-full"
+            predictSuggestions={(prefix) =>
+              PredictionService.suggest({ field: "body", prefix, method })
+            }
           />
         </div>
       ) : (

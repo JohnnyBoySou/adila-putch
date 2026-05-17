@@ -1,4 +1,4 @@
-import { BookmarkPlus, MoreVertical, Send, Terminal, Trash2, Variable } from "lucide-react";
+import { BookmarkPlus, MoreVertical, Send, Terminal, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { strMap } from "../../lib/utils";
+import { methodTextClass } from "@/lib/http-methods";
+import { cn, strMap } from "../../lib/utils";
 import {
   buildCurlCommand,
   hasUnresolvedVariables,
@@ -36,9 +37,8 @@ import { useWorkspaces } from "../../hooks/useWorkspaces";
 import { useSelectedEnvironmentId } from "../../stores/selected-environment.store";
 import { RequestConfig } from "@bindings/services";
 import type { Request } from "../../services/request.service";
-import VariableAutocomplete, {
-  VariableAutocompleteRef,
-} from "@/components/functional/variable-autocomplete";
+import VariableAutocomplete from "@/components/functional/variable-autocomplete";
+import { PredictionService } from "../../services/prediction.service";
 import { useRequestSender } from "../../hooks/useRequests";
 import { useTemplateActions } from "../../stores/templates.store";
 import AuthEditor from "../auth/view";
@@ -56,7 +56,7 @@ interface RequestEditorProps {
 const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
 
 const autocompleteClass =
-  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 pr-10 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
 export default function RequestEditor({ request, onUpdate, onDelete }: RequestEditorProps) {
   const [name, setName] = useState(request.name);
@@ -75,8 +75,6 @@ export default function RequestEditor({ request, onUpdate, onDelete }: RequestEd
     "params",
   );
   const { response, loading: sending, error: sendError, sendRequest } = useRequestSender();
-  const urlInputRef = useRef<VariableAutocompleteRef>(null);
-  const nameInputRef = useRef<HTMLInputElement>(null);
   const nameSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [editingName, setEditingName] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
@@ -103,14 +101,6 @@ export default function RequestEditor({ request, onUpdate, onDelete }: RequestEd
     [url, activeVariables],
   );
   const showUrlPreview = url.includes("{{") && !!selectedEnvironmentId;
-
-  // Foca e seleciona o campo ao entrar em modo de edição do nome
-  useEffect(() => {
-    if (editingName) {
-      nameInputRef.current?.focus();
-      nameInputRef.current?.select();
-    }
-  }, [editingName]);
 
   // Auto-save do nome com debounce de 2s após a última digitação.
   // Deps = só [name] de propósito: o debounce deve reiniciar quando o usuário
@@ -324,7 +314,16 @@ export default function RequestEditor({ request, onUpdate, onDelete }: RequestEd
         <div className="flex items-center gap-2 mb-4">
           {editingName ? (
             <Input
-              ref={nameInputRef}
+              // Foca/seleciona na montagem (síncrono) — fazê-lo num
+              // useEffect só rodava após o paint, daí o atraso percebido.
+              // Mesmo padrão do rename inline em requests/list.tsx; evita
+              // jsx-a11y/no-autofocus.
+              ref={(el) => {
+                if (el && document.activeElement !== el) {
+                  el.focus();
+                  el.select();
+                }
+              }}
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -338,7 +337,9 @@ export default function RequestEditor({ request, onUpdate, onDelete }: RequestEd
                   setEditingName(false);
                 }
               }}
-              className="flex-1 font-medium"
+              // Tipografia/caixa idênticas ao <h2> de exibição → sem salto
+              // de tamanho de fonte nem borda ao entrar em edição.
+              className="flex-1 h-auto border-0 bg-transparent p-0 text-lg font-semibold text-foreground shadow-none focus-visible:ring-0"
               placeholder="Nome da request"
             />
           ) : (
@@ -363,48 +364,41 @@ export default function RequestEditor({ request, onUpdate, onDelete }: RequestEd
 
         <div className="flex items-center gap-2">
           <Select value={method} onValueChange={handleMethodChange}>
-            <SelectTrigger className="font-semibold">
+            <SelectTrigger className={cn("font-semibold", methodTextClass(method))}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {HTTP_METHODS.map((m) => (
-                <SelectItem key={m} value={m}>
+                <SelectItem
+                  key={m}
+                  value={m}
+                  className={cn("font-semibold", methodTextClass(m))}
+                >
                   {m}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <div className="flex-1 relative flex items-center">
+          {/* Bloco (não flex) para o wrapper do VariableAutocomplete herdar
+              100% da largura — `flex items-center` encolhia o wrapper. */}
+          <div className="flex-1">
             <VariableAutocomplete
-              ref={urlInputRef}
               value={url}
               onChange={(newUrl) => setUrl(newUrl)}
               onBlur={() => handleUrlChange(url)}
               className={autocompleteClass}
               placeholder="https://api.example.com/endpoint"
+              suggestions={["https://", "http://"]}
+              fetchSuggestions={(prefix) =>
+                PredictionService.suggest({
+                  field: "url",
+                  prefix,
+                  collectionId: request.collection_id,
+                  method,
+                })
+              }
             />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => urlInputRef.current?.openVariableMenu()}
-              className="absolute right-1 h-7 w-7 bg-transparent text-muted-foreground hover:text-foreground"
-              title="Inserir variável (Ctrl+Space)"
-              aria-label="Inserir variável"
-            >
-              <Variable size={16} />
-            </Button>
           </div>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={handleCopyCurl}
-            disabled={!url.trim()}
-            title="Copiar como comando cURL"
-          >
-            <Terminal size={16} />
-            cURL
-          </Button>
           <Button onClick={handleSend} disabled={sending || !url.trim()}>
             <Send size={16} />
             {sending ? "Enviando…" : "Enviar"}
@@ -516,6 +510,15 @@ export default function RequestEditor({ request, onUpdate, onDelete }: RequestEd
             />
           </div>
           <DialogFooter className="sm:justify-start">
+            <Button
+              variant="secondary"
+              onClick={handleCopyCurl}
+              disabled={!url.trim()}
+              title="Copiar como comando cURL"
+            >
+              <Terminal size={16} />
+              Copiar cURL
+            </Button>
             <Button variant="secondary" onClick={openSaveTemplate}>
               <BookmarkPlus size={16} />
               Salvar como template

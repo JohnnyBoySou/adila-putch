@@ -21,7 +21,7 @@ export default function EnvironmentUpdate() {
 
   const handleSubmit = async (values: EnvironmentFormValues) => {
     try {
-      await updateEnvironment(environment.id, values.name, values.variables);
+      await updateEnvironment(environment.id, values);
       toast.success("Ambiente atualizado com sucesso");
       navigate({ to: "/panel/environments" });
     } catch (error) {
@@ -36,6 +36,9 @@ export default function EnvironmentUpdate() {
       pendingLabel="Salvando..."
       initialValues={{
         name: environment.name,
+        description: environment.description,
+        pinned: environment.pinned,
+        deprecated: environment.deprecated,
         variables: strMap(environment.variables),
       }}
       onSubmit={handleSubmit}

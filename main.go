@@ -49,6 +49,7 @@ func main() {
 			application.NewService(services.NewTestsService(st)),
 			application.NewService(services.NewWorkspaceService(st, cfg)),
 			application.NewService(services.NewWorkspacesService(st, cfg)),
+			application.NewService(services.NewPredictionService(st)),
 			application.NewService(sync),
 		},
 		Assets: application.AssetOptions{

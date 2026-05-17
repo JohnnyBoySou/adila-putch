@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { PlusIcon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import VariableAutocomplete from "@/components/functional/variable-autocomplete";
+import { PredictionService } from "@/services/prediction.service";
 
 interface QueryParamsEditorProps {
   params: Record<string, string>;
@@ -13,14 +13,14 @@ const autocompleteClass =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
 export default function QueryParamsEditor({ params, onChange }: QueryParamsEditorProps) {
+  // Estado local é a fonte de verdade da edição (mantém linhas-rascunho com
+  // chave vazia, igual ao HeadersEditor). Não re-sincronizar de `params`: o
+  // round-trip do onChange remove a chave vazia e apagaria a linha recém-criada
+  // ("Adicionar parâmetro" não persistia). RequestEditor remonta via
+  // key={request.id}, então a inicialização única já cobre a troca de request.
   const [paramEntries, setParamEntries] = useState<Array<{ key: string; value: string }>>(
     Object.entries(params).map(([key, value]) => ({ key, value })),
   );
-
-  useEffect(() => {
-    const entries = Object.entries(params).map(([key, value]) => ({ key, value }));
-    setParamEntries(entries.length > 0 ? entries : [{ key: "", value: "" }]);
-  }, [params]);
 
   const updateParams = (entries: Array<{ key: string; value: string }>) => {
     setParamEntries(entries);
@@ -70,12 +70,14 @@ export default function QueryParamsEditor({ params, onChange }: QueryParamsEdito
         <div className="space-y-2">
           {paramEntries.map((param, index) => (
             <div key={index} className="flex gap-2">
-              <Input
-                type="text"
+              <VariableAutocomplete
                 value={param.key}
-                onChange={(e) => updateParam(index, "key", e.target.value)}
+                onChange={(value) => updateParam(index, "key", value)}
                 placeholder="Nome do parâmetro"
-                className="flex-1"
+                className={`${autocompleteClass} flex-1`}
+                fetchSuggestions={(prefix) =>
+                  PredictionService.suggest({ field: "param", prefix })
+                }
               />
               <VariableAutocomplete
                 value={param.value}

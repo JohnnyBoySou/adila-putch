@@ -17,6 +17,11 @@ import (
 // traduzem para mensagens de domínio.
 var ErrNotFound = errors.New("não encontrado")
 
+// ErrInvalid é retornado quando uma operação é estruturalmente inválida (ex.:
+// mover uma pasta para dentro de si mesma ou de uma descendente). Os services
+// o traduzem para mensagens de domínio.
+var ErrInvalid = errors.New("operação inválida")
+
 func now() string   { return time.Now().UTC().Format(time.RFC3339) }
 func newID() string { return uuid.NewString() }
 
@@ -323,23 +328,46 @@ func (s *Store) GetFolder(id string) (Folder, error) {
 	return Folder{}, ErrNotFound
 }
 
-func (s *Store) CreateFolder(collectionID, name string) (Folder, error) {
+// CreateFolder cria um folder dentro da coleção (parentID == "") ou aninhado
+// dentro de outro folder (parentID != ""). A hierarquia é o próprio caminho:
+// um subfolder é uma pasta dentro da pasta do pai.
+func (s *Store) CreateFolder(collectionID, parentID, name string) (Folder, error) {
 	defer s.lock()()
 	snap, err := s.snapshot()
 	if err != nil {
 		return Folder{}, err
 	}
-	colPath, ok := snap.colDir[collectionID]
-	if !ok {
-		return Folder{}, ErrNotFound
+	parentDir, err := s.folderParentDir(snap, collectionID, parentID)
+	if err != nil {
+		return Folder{}, err
 	}
-	f := Folder{ID: newID(), Name: name, CollectionID: collectionID, CreatedAt: now()}
-	dir := uniqueDir(colPath, name, folderMeta, f.ID, true)
-	path := filepath.Join(colPath, dir, folderMeta)
+	f := Folder{
+		ID: newID(), Name: name, CollectionID: collectionID,
+		ParentID: strings.TrimSpace(parentID), CreatedAt: now(),
+	}
+	dir := uniqueDir(parentDir, name, folderMeta, f.ID, true)
+	path := filepath.Join(parentDir, dir, folderMeta)
 	if err := writeYAML(path, folderFile{ID: f.ID, Name: f.Name, CreatedAt: f.CreatedAt}); err != nil {
 		return Folder{}, err
 	}
 	return f, nil
+}
+
+// folderParentDir resolve o diretório pai onde um folder vive: a pasta do
+// folder pai (parentID != "") ou a pasta da coleção (parentID == "").
+func (s *Store) folderParentDir(snap *snapshot, collectionID, parentID string) (string, error) {
+	if strings.TrimSpace(parentID) != "" {
+		dir, ok := snap.folDir[parentID]
+		if !ok {
+			return "", ErrNotFound
+		}
+		return dir, nil
+	}
+	dir, ok := snap.colDir[collectionID]
+	if !ok {
+		return "", ErrNotFound
+	}
+	return dir, nil
 }
 
 func (s *Store) UpdateFolder(id, name string) error {
@@ -362,8 +390,51 @@ func (s *Store) UpdateFolder(id, name string) error {
 		folderFile{ID: id, Name: name, CreatedAt: cur.CreatedAt}); err != nil {
 		return err
 	}
-	colPath := snap.colDir[cur.CollectionID]
-	return renameDir(dir, filepath.Join(colPath, uniqueDir(colPath, name, folderMeta, id, true)))
+	// Renomeia dentro do MESMO pai (collection ou folder) — o pai é o
+	// diretório que contém a pasta atual, independente da profundidade.
+	parentDir := filepath.Dir(dir)
+	return renameDir(dir, filepath.Join(parentDir, uniqueDir(parentDir, name, folderMeta, id, true)))
+}
+
+// MoveFolder reparenta um folder: move seu diretório para dentro do novo pai
+// (newParentID == "" = raiz da coleção). Como a hierarquia é o próprio
+// caminho, basta mover a pasta — ParentID é rederivado no próximo scan.
+// Recusa mover uma pasta para dentro de si mesma ou de uma descendente
+// (criaria um ciclo / perderia a subárvore).
+func (s *Store) MoveFolder(id, newParentID string) error {
+	defer s.lock()()
+	snap, err := s.snapshot()
+	if err != nil {
+		return err
+	}
+	dir, ok := snap.folDir[id]
+	if !ok {
+		return ErrNotFound
+	}
+	var cur Folder
+	for _, f := range snap.folders {
+		if f.ID == id {
+			cur = f
+		}
+	}
+	newParentID = strings.TrimSpace(newParentID)
+	if newParentID == id {
+		return ErrInvalid
+	}
+	// No-op: já está sob o pai pedido.
+	if newParentID == strings.TrimSpace(cur.ParentID) {
+		return nil
+	}
+	parentDir, err := s.folderParentDir(snap, cur.CollectionID, newParentID)
+	if err != nil {
+		return err
+	}
+	// Anti-ciclo: o novo pai não pode ser a própria pasta nem uma descendente
+	// dela — o destino estaria dentro da subárvore que vamos mover.
+	if parentDir == dir || strings.HasPrefix(parentDir, dir+string(os.PathSeparator)) {
+		return ErrInvalid
+	}
+	return renameDir(dir, filepath.Join(parentDir, uniqueDir(parentDir, cur.Name, folderMeta, id, true)))
 }
 
 func (s *Store) DeleteFolder(id string) error {
@@ -527,6 +598,119 @@ func (s *Store) DeleteRequest(id string) error {
 		return nil
 	}
 	return os.Remove(path)
+}
+
+// SetRequestFavorite alterna o "fixar" (IsFavorite) de uma request e reescreve
+// o YAML. É o ÚNICO caminho para mudar esse campo: UpdateRequest faz replace
+// total mas preserva IsFavorite de propósito. O nome não muda, então o arquivo
+// permanece no mesmo path (sem rename).
+func (s *Store) SetRequestFavorite(id string, favorite bool) error {
+	defer s.lock()()
+	snap, err := s.snapshot()
+	if err != nil {
+		return err
+	}
+	path, ok := snap.reqPath[id]
+	if !ok {
+		return ErrNotFound
+	}
+	cur, found := findRequest(snap, id)
+	if !found {
+		return ErrNotFound
+	}
+	cur.IsFavorite = favorite
+	return writeYAML(path, toRequestFile(cur))
+}
+
+// MoveRequest move uma request para outro folder (folderID == "" = raiz da
+// coleção). Reescreve o arquivo no novo diretório e remove o antigo. Preserva
+// todos os campos (lê o estado atual) — diferente de UpdateRequest.
+func (s *Store) MoveRequest(id, folderID string) error {
+	defer s.lock()()
+	snap, err := s.snapshot()
+	if err != nil {
+		return err
+	}
+	oldPath, ok := snap.reqPath[id]
+	if !ok {
+		return ErrNotFound
+	}
+	cur, found := findRequest(snap, id)
+	if !found {
+		return ErrNotFound
+	}
+	folderID = strings.TrimSpace(folderID)
+	if folderID != "" {
+		if _, ok := snap.folDir[folderID]; !ok {
+			return ErrNotFound
+		}
+	}
+	cur.FolderID = folderID
+	dir, err := s.requestDir(snap, cur.CollectionID, folderID)
+	if err != nil {
+		return err
+	}
+	newPath := filepath.Join(dir, uniqueFile(dir, cur.Name, id)+".yml")
+	if err := writeYAML(newPath, toRequestFile(cur)); err != nil {
+		return err
+	}
+	if newPath != oldPath {
+		return os.Remove(oldPath)
+	}
+	return nil
+}
+
+func findRequest(snap *snapshot, id string) (Request, bool) {
+	for _, r := range snap.requests {
+		if r.ID == id {
+			return r, true
+		}
+	}
+	return Request{}, false
+}
+
+// ---- Ordem manual (folders + requests) -------------------------------------
+
+// GetOrders devolve a ordem manual de todos os containers de uma coleção:
+// chave "" = raiz da coleção; chave = folderID para cada folder. Containers
+// sem manifesto não aparecem no mapa.
+func (s *Store) GetOrders(collectionID string) (map[string][]string, error) {
+	defer s.lock()()
+	snap, err := s.snapshot()
+	if err != nil {
+		return nil, err
+	}
+	out := map[string][]string{}
+	if ord, ok := snap.order[orderKey(collectionID, "")]; ok {
+		out[""] = ord
+	}
+	for _, f := range snap.folders {
+		if f.CollectionID != collectionID {
+			continue
+		}
+		if ord, ok := snap.order[orderKey(collectionID, f.ID)]; ok {
+			out[f.ID] = ord
+		}
+	}
+	return out, nil
+}
+
+// SetOrder grava a ordem manual de um container (folderID == "" = raiz da
+// coleção). O manifesto .putch-order.yml fica no diretório do container.
+func (s *Store) SetOrder(collectionID, folderID string, ids []string) error {
+	defer s.lock()()
+	snap, err := s.snapshot()
+	if err != nil {
+		return err
+	}
+	dir, err := s.folderParentDir(snap, collectionID, folderID)
+	if err != nil {
+		return err
+	}
+	if ids == nil {
+		ids = []string{}
+	}
+	return writeYAML(filepath.Join(dir, orderMeta), orderFile{Order: ids})
 }
 
 func toRequestFile(r Request) requestFile {

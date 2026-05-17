@@ -19,6 +19,9 @@ export function useRequests() {
       createRequest: s.create,
       deleteRequest: s.remove,
       updateRequest: s.update,
+      duplicateRequest: s.duplicate,
+      setRequestFavorite: s.setFavorite,
+      moveRequest: s.move,
     })),
   );
 }

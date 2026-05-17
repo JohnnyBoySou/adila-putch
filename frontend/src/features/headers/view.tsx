@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { PlusIcon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import VariableAutocomplete from "@/components/functional/variable-autocomplete";
+import { PredictionService } from "@/services/prediction.service";
 
 interface HeadersEditorProps {
   headers: Record<string, string>;
@@ -60,12 +60,14 @@ export default function HeadersEditor({ headers, onChange }: HeadersEditorProps)
         <div className="space-y-2">
           {headerEntries.map((header, index) => (
             <div key={index} className="flex gap-2">
-              <Input
-                type="text"
+              <VariableAutocomplete
                 value={header.key}
-                onChange={(e) => updateHeader(index, "key", e.target.value)}
+                onChange={(value) => updateHeader(index, "key", value)}
                 placeholder="Nome do header"
-                className="flex-1"
+                className={`${autocompleteClass} flex-1`}
+                fetchSuggestions={(prefix) =>
+                  PredictionService.suggest({ field: "header", prefix })
+                }
               />
               <VariableAutocomplete
                 value={header.value}

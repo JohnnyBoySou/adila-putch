@@ -13,10 +13,15 @@
 //	      <test-slug>.yml                      # suíte de testes (encadeia requests)
 //	    <collection-slug>/
 //	      collection.yml                         # id, name, description, pinned…
+//	      .putch-order.yml                       # ordem manual da raiz da coleção
 //	      requests/<request-slug>.yml          # requests sem pasta
 //	      <folder-slug>/
 //	        folder.yml
+//	        .putch-order.yml                     # ordem manual deste folder
 //	        <request-slug>.yml                 # requests da pasta
+//	        <subfolder-slug>/                    # folders aninham recursivamente
+//	          folder.yml
+//	          <request-slug>.yml
 //
 // Um workspace engloba tudo: collections, environments (compartilhados por
 // todas as collections do workspace) e tests. O `root` pode conter vários
@@ -45,7 +50,11 @@ const (
 	envsDir        = "environments"
 	testsDir       = "tests"
 	localSuffix    = ".local.yml"
-	gitignoreLine  = "**/*.local.yml"
+	// orderMeta guarda a ordem manual de filhos (folders + requests) de um
+	// container. Começa com "." — slugify nunca produz nome com ponto inicial,
+	// então nunca colide com o slug de uma request. Versionável (vai pro git).
+	orderMeta     = ".putch-order.yml"
+	gitignoreLine = "**/*.local.yml"
 
 	defaultWorkspaceName = "Padrão"
 )
@@ -83,7 +92,11 @@ type Folder struct {
 	ID           string
 	Name         string
 	CollectionID string
-	CreatedAt    string
+	// ParentID é o folder pai ("" = folder direto na coleção). Derivado da
+	// estrutura de diretórios aninhados durante o scan — não persistido no
+	// YAML (a hierarquia é o próprio caminho, igual a CollectionID/FolderID).
+	ParentID  string
+	CreatedAt string
 }
 
 type Request struct {
@@ -490,6 +503,15 @@ type snapshot struct {
 	reqPath  map[string]string // requestID -> caminho do arquivo
 	envPath  map[string]string // envID -> caminho do .yml versionado
 	testPath map[string]string // testID -> caminho do arquivo
+	// order: orderKey(colID, folderID) -> ordem manual dos ids filhos
+	// (folders + requests). "" de folderID = raiz da coleção.
+	order map[string][]string
+}
+
+// orderKey identifica um container de ordenação: a raiz de uma coleção
+// (folderID == "") ou um folder específico.
+func orderKey(collectionID, folderID string) string {
+	return collectionID + "\x00" + folderID
 }
 
 func (s *Store) snapshot() (*snapshot, error) {
@@ -500,6 +522,7 @@ func (s *Store) snapshot() (*snapshot, error) {
 		reqPath:  map[string]string{},
 		envPath:  map[string]string{},
 		testPath: map[string]string{},
+		order:    map[string][]string{},
 	}
 	entries, err := os.ReadDir(s.Root)
 	if err != nil {
@@ -571,18 +594,58 @@ func (s *Store) scanCollection(snap *snapshot, colID, colPath string) error {
 			continue
 		case name == requestsDir:
 			s.scanRequests(snap, colID, "", filepath.Join(colPath, name))
-		default: // pasta de usuário (folder)
-			folPath := filepath.Join(colPath, name)
-			ff, err := readYAML[folderFile](filepath.Join(folPath, folderMeta))
-			if err != nil {
-				continue
+		default: // pasta de usuário (folder de topo da coleção)
+			if err := s.scanFolder(snap, colID, "", filepath.Join(colPath, name)); err != nil {
+				return err
 			}
-			snap.folders = append(snap.folders, Folder{
-				ID: ff.ID, Name: ff.Name, CollectionID: colID, CreatedAt: ff.CreatedAt,
-			})
-			snap.folDir[ff.ID] = folPath
-			s.scanRequests(snap, colID, ff.ID, folPath)
 		}
+	}
+	// Ordem manual da raiz da coleção (folders de topo + requests soltas).
+	if of, err := readYAML[orderFile](filepath.Join(colPath, orderMeta)); err == nil {
+		snap.order[orderKey(colID, "")] = of.Order
+	}
+	return nil
+}
+
+// scanFolder lê um folder e, recursivamente, seus subfolders. parentID é o
+// folder pai ("" = folder direto na coleção). Diretório sem folder.yml não é
+// um folder válido — ignora em silêncio (pode ser lixo/temporário).
+func (s *Store) scanFolder(snap *snapshot, colID, parentID, folPath string) error {
+	ff, err := readYAML[folderFile](filepath.Join(folPath, folderMeta))
+	if err != nil {
+		return nil
+	}
+	fid := ff.ID
+	snap.folders = append(snap.folders, Folder{
+		ID: fid, Name: ff.Name, CollectionID: colID, ParentID: parentID, CreatedAt: ff.CreatedAt,
+	})
+	snap.folDir[fid] = folPath
+
+	entries, err := os.ReadDir(folPath)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() {
+			if err := s.scanFolder(snap, colID, fid, filepath.Join(folPath, name)); err != nil {
+				return err
+			}
+			continue
+		}
+		if name == folderMeta || name == orderMeta || !strings.HasSuffix(name, ".yml") {
+			continue
+		}
+		path := filepath.Join(folPath, name)
+		rf, err := readYAML[requestFile](path)
+		if err != nil {
+			continue
+		}
+		snap.requests = append(snap.requests, requestFromFile(rf, colID, fid))
+		snap.reqPath[rf.ID] = path
+	}
+	if of, err := readYAML[orderFile](filepath.Join(folPath, orderMeta)); err == nil {
+		snap.order[orderKey(colID, fid)] = of.Order
 	}
 	return nil
 }
@@ -593,27 +656,34 @@ func (s *Store) scanRequests(snap *snapshot, colID, folID, dir string) {
 		return
 	}
 	for _, e := range entries {
-		if e.IsDir() || e.Name() == folderMeta || !strings.HasSuffix(e.Name(), ".yml") {
+		name := e.Name()
+		if e.IsDir() || name == folderMeta || name == orderMeta || !strings.HasSuffix(name, ".yml") {
 			continue
 		}
-		path := filepath.Join(dir, e.Name())
+		path := filepath.Join(dir, name)
 		rf, err := readYAML[requestFile](path)
 		if err != nil {
 			continue
 		}
-		snap.requests = append(snap.requests, Request{
-			ID: rf.ID, Name: rf.Name, CollectionID: colID, FolderID: folID,
-			URL: rf.URL, Method: rf.Method, Headers: rf.Headers,
-			Params: rf.Params, Body: string(rf.Body),
-			BodyType: rf.BodyType, Form: rf.Form, Files: rf.Files,
-			AuthType: rf.AuthType, AuthValue: rf.AuthValue,
-			TimeoutMS:  rf.TimeoutMS,
-			PreScript:  string(rf.PreScript),
-			PostScript: string(rf.PostScript),
-			IsFavorite: rf.Favorite, IsActive: rf.Active,
-			CreatedAt: rf.CreatedAt,
-		})
+		snap.requests = append(snap.requests, requestFromFile(rf, colID, folID))
 		snap.reqPath[rf.ID] = path
+	}
+}
+
+// requestFromFile monta o Request de domínio a partir do DTO em disco. colID/
+// folID vêm da posição física (a hierarquia é o caminho, não o YAML).
+func requestFromFile(rf requestFile, colID, folID string) Request {
+	return Request{
+		ID: rf.ID, Name: rf.Name, CollectionID: colID, FolderID: folID,
+		URL: rf.URL, Method: rf.Method, Headers: rf.Headers,
+		Params: rf.Params, Body: string(rf.Body),
+		BodyType: rf.BodyType, Form: rf.Form, Files: rf.Files,
+		AuthType: rf.AuthType, AuthValue: rf.AuthValue,
+		TimeoutMS:  rf.TimeoutMS,
+		PreScript:  string(rf.PreScript),
+		PostScript: string(rf.PostScript),
+		IsFavorite: rf.Favorite, IsActive: rf.Active,
+		CreatedAt: rf.CreatedAt,
 	}
 }
 

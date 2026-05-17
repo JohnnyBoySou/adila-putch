@@ -110,6 +110,18 @@ export const RequestService = {
     return Wails.Delete(id);
   },
 
+  // Único caminho para o "fixar": Update faz replace total mas preserva
+  // is_favorite no backend de propósito.
+  setFavorite(id: string, favorite: boolean) {
+    return Wails.SetFavorite(id, favorite);
+  },
+
+  // Move a request para outro folder (folderId === "" = raiz da coleção).
+  // Preserva todos os campos — diferente de update().
+  move(id: string, folderId: string) {
+    return Wails.Move(id, folderId);
+  },
+
   /**
    * Duplica uma request client-side: lê a original e cria uma cópia (mesmo
    * collection/folder) com sufixo " (cópia)" no nome. Não há método dedicado

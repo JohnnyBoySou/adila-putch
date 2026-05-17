@@ -1,12 +1,7 @@
-import Folder from "@/components/functional/folder";
 import {
   Badge,
   Button,
   Card,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
   Column,
   Container,
   Input,
@@ -22,6 +17,7 @@ import {
   Tabs,
   TabsList,
   TabsTrigger,
+  Text,
   Title,
 } from "@/components/ui";
 import { useCollections } from "@/hooks/useCollections";
@@ -32,6 +28,7 @@ import {
   ClockIcon,
   DownloadIcon,
   EllipsisIcon,
+  FolderIcon,
   GridIcon,
   ListIcon,
   PencilIcon,
@@ -95,9 +92,8 @@ export default function CollectionsView() {
   };
 
   /**
-   * Aplica busca textual, filtro de status e ordenação sobre a lista já
-   * carregada no store (filtragem é client-side; nada vai ao backend).
-   * Coleções fixadas vêm sempre antes das demais (intenção do produto).
+   * Busca textual, filtro de status e ordenação sobre a lista já carregada
+   * no store (client-side; nada vai ao backend). Fixadas vêm sempre antes.
    */
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -115,7 +111,6 @@ export default function CollectionsView() {
     const bySort = (a: Collection, b: Collection) => {
       if (sort === "name") return a.name.localeCompare(b.name, "pt-BR");
       if (sort === "requests") return b.request_count - a.request_count;
-      // recent: mais recém-atualizada primeiro
       return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
     };
 
@@ -133,16 +128,19 @@ export default function CollectionsView() {
     return <CollectionsEmpty />;
   }
 
-  const gridClasses =
-    view === "list"
-      ? "grid-cols-1"
-      : "[grid-template-columns:repeat(auto-fill,minmax(min(15rem,100%),1fr))]";
+  const total = collections.length;
 
   return (
     <Container className="p-6">
-      <Column>
-        <Row className="justify-between items-center">
-          <Title>Coleções</Title>
+      <Column className="gap-6">
+        {/* Cabeçalho: título + subtítulo + ações */}
+        <Row className="items-start justify-between gap-4">
+          <div className="space-y-1">
+            <Title>Coleções</Title>
+            <Text className="text-muted-foreground">
+              {total} {total === 1 ? "coleção organizada" : "coleções organizadas"} neste workspace.
+            </Text>
+          </div>
           <Row className="gap-2">
             {/* Input oculto para seleção de arquivo de importação */}
             <input
@@ -154,73 +152,81 @@ export default function CollectionsView() {
               onChange={handleFileChange}
             />
             <Button variant="outline" onClick={handleImportClick}>
-              <UploadIcon className="w-4 h-4" />
+              <UploadIcon className="size-4" />
               Importar
             </Button>
             <Button type="link" to="/panel/collections/create">
-              <PlusIcon className="w-4 h-4" />
+              <PlusIcon className="size-4" />
               Criar coleção
             </Button>
           </Row>
         </Row>
 
-        {/* Barra de controles: busca, filtro de status, ordenação e modo de exibição */}
-        <Row className="flex-wrap items-center gap-3">
-          <div className="relative min-w-56 flex-1">
+        {/* Controles: busca à esquerda, cluster de filtro/ordenação/visão à direita */}
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="relative lg:max-w-sm lg:flex-1">
             <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar por nome ou descrição"
+              placeholder="Buscar coleções"
               aria-label="Buscar coleções"
               className="pl-9"
             />
           </div>
 
-          <Tabs value={status} onValueChange={(v) => setStatus(v as StatusFilter)}>
-            <TabsList>
-              {STATUS_FILTERS.map((f) => (
-                <TabsTrigger key={f.value} value={f.value}>
-                  {f.label}
+          <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
+            <Tabs value={status} onValueChange={(v) => setStatus(v as StatusFilter)}>
+              <TabsList>
+                {STATUS_FILTERS.map((f) => (
+                  <TabsTrigger key={f.value} value={f.value}>
+                    {f.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+
+            <Select value={sort} onValueChange={(v) => setSort(v as SortMode)}>
+              <SelectTrigger className="w-[150px]" aria-label="Ordenar coleções">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="recent">Mais recentes</SelectItem>
+                <SelectItem value="name">Nome (A–Z)</SelectItem>
+                <SelectItem value="requests">Mais requests</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Tabs value={view} onValueChange={(v) => setView(v as ViewMode)}>
+              <TabsList>
+                <TabsTrigger value="list" aria-label="Visualizar em lista">
+                  <ListIcon className="size-4" />
                 </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-
-          <Select value={sort} onValueChange={(v) => setSort(v as SortMode)}>
-            <SelectTrigger className="w-44" aria-label="Ordenar coleções">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="recent">Mais recentes</SelectItem>
-              <SelectItem value="name">Nome (A–Z)</SelectItem>
-              <SelectItem value="requests">Mais requests</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Tabs value={view} onValueChange={(v) => setView(v as ViewMode)}>
-            <TabsList>
-              <TabsTrigger value="list" aria-label="Visualizar em lista">
-                <ListIcon className="w-4 h-4" />
-              </TabsTrigger>
-              <TabsTrigger value="grid" aria-label="Visualizar em grade">
-                <GridIcon className="w-4 h-4" />
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </Row>
+                <TabsTrigger value="grid" aria-label="Visualizar em grade">
+                  <GridIcon className="size-4" />
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+        </div>
 
         {visible.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border py-16 text-center">
+          <div className="flex flex-col items-center gap-1.5 rounded-xl border border-dashed border-border py-20 text-center">
             <p className="text-sm font-medium">Nenhuma coleção encontrada</p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Ajuste a busca ou os filtros para ver mais resultados.
             </p>
           </div>
+        ) : view === "list" ? (
+          <div className="flex flex-col gap-2">
+            {visible.map((c) => (
+              <CollectionItem key={c.id} collection={c} view="list" />
+            ))}
+          </div>
         ) : (
-          <div className={cn("grid w-full gap-4 sm:gap-5 md:gap-6", gridClasses)}>
-            {visible.map((collection) => (
-              <CollectionItem key={collection.id} collection={collection} view={view} />
+          <div className="grid w-full gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(17rem,100%),1fr))]">
+            {visible.map((c) => (
+              <CollectionItem key={c.id} collection={c} view="grid" />
             ))}
           </div>
         )}
@@ -275,14 +281,23 @@ const CollectionItem = ({
   };
 
   const cardClass = cn(
-    "group/collection relative overflow-hidden bg-background transition-[border-color,box-shadow,background-color] duration-200 hover:border-foreground/15 hover:bg-accent/20",
-    collection.deprecated && "opacity-70",
+    "group/col relative gap-0 overflow-hidden border-border bg-card p-0 transition-colors hover:border-foreground/20 hover:bg-accent/30",
+    collection.deprecated && "opacity-65",
   );
 
-  const badges = (
-    <div className="flex shrink-0 items-center gap-1.5">
+  const icon = (
+    <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/50 text-muted-foreground">
+      <FolderIcon className="size-5" />
+    </span>
+  );
+
+  const titleRow = (
+    <div className="flex min-w-0 items-center gap-2">
+      <span className="truncate font-semibold leading-none tracking-tight">
+        {collection.name}
+      </span>
       {collection.pinned ? (
-        <PinIcon className="size-3.5 fill-current text-info" aria-label="Fixada" />
+        <PinIcon className="size-3.5 shrink-0 fill-current text-info" aria-label="Fixada" />
       ) : null}
       {collection.deprecated ? (
         <Badge variant="outline" className="text-muted-foreground">
@@ -296,7 +311,9 @@ const CollectionItem = ({
     <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
       <ClockIcon className="size-3 shrink-0 opacity-70" aria-hidden />
       <span>{updatedLabel}</span>
-      <span aria-hidden>·</span>
+      <span aria-hidden className="opacity-50">
+        ·
+      </span>
       <span>{collection.request_count} requests</span>
     </p>
   );
@@ -307,7 +324,7 @@ const CollectionItem = ({
         <Button
           size="icon"
           variant="ghost"
-          className="size-8 shrink-0 text-muted-foreground opacity-70 transition-opacity group-hover/collection:opacity-100"
+          className="size-8 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/col:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
           aria-label="Ações da coleção"
           onClick={(e) => {
             e.preventDefault();
@@ -360,26 +377,14 @@ const CollectionItem = ({
         params={{ collectionId: collection.id }}
       >
         <Card className={cardClass}>
-          <div className="flex items-center gap-4 p-4 pl-5">
-            <div className="relative size-12 shrink-0 overflow-hidden rounded-md">
-              <Folder
-                option={collection.bg}
-                className="absolute top-0 left-0 origin-top-left scale-[0.273]"
-              />
+          <div className="flex items-center gap-4 p-4">
+            {icon}
+            <div className="min-w-0 flex-1 space-y-1">
+              {titleRow}
+              <p className="line-clamp-1 text-sm text-muted-foreground">{description}</p>
             </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex min-w-0 items-center gap-2">
-                <CardTitle className="truncate text-base">{collection.name}</CardTitle>
-                {badges}
-              </div>
-              <CardDescription className="line-clamp-1 text-sm">
-                {description}
-              </CardDescription>
-            </div>
-            <div className="flex shrink-0 items-center gap-4">
-              {meta}
-              {menu}
-            </div>
+            <div className="hidden shrink-0 md:block">{meta}</div>
+            {menu}
           </div>
         </Card>
       </Link>
@@ -392,20 +397,17 @@ const CollectionItem = ({
       params={{ collectionId: collection.id }}
     >
       <Card className={cn(cardClass, "flex h-full flex-col")}>
-        <div className="relative flex h-28 items-center justify-center overflow-hidden border-b border-border/50 bg-muted/30">
-          <Folder option={collection.bg} className="scale-[0.62]" />
-          <div className="absolute top-2 right-2">{menu}</div>
-          {(collection.pinned || collection.deprecated) && (
-            <div className="absolute top-2 left-2">{badges}</div>
-          )}
+        <div className="flex items-start justify-between gap-3 p-4 pb-3">
+          {icon}
+          {menu}
         </div>
-        <CardHeader className="space-y-1.5 pt-4 pb-2">
-          <CardTitle className="truncate text-base">{collection.name}</CardTitle>
-          <CardDescription className="line-clamp-2 min-h-10 text-sm leading-relaxed">
+        <div className="flex-1 space-y-1.5 px-4">
+          {titleRow}
+          <p className="line-clamp-2 min-h-10 text-sm leading-relaxed text-muted-foreground">
             {description}
-          </CardDescription>
-        </CardHeader>
-        <CardFooter className="mt-auto p-4 pt-2">{meta}</CardFooter>
+          </p>
+        </div>
+        <div className="mt-4 border-t border-border/60 p-4">{meta}</div>
       </Card>
     </Link>
   );

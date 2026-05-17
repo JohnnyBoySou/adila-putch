@@ -17,6 +17,8 @@ interface RequestsState {
   duplicate: (id: string) => Promise<Request>;
   remove: (id: string) => Promise<void>;
   update: (id: string, data: Partial<Request>) => Promise<void>;
+  setFavorite: (id: string, favorite: boolean) => Promise<void>;
+  move: (id: string, folderId: string) => Promise<void>;
 }
 
 export const useRequestsStore = create<RequestsState>((set, get) => ({
@@ -102,6 +104,33 @@ export const useRequestsStore = create<RequestsState>((set, get) => ({
       }));
     } catch (err) {
       set({ error: err instanceof Error ? err.message : "Failed to update request" });
+      throw err;
+    }
+  },
+
+  setFavorite: async (id, favorite) => {
+    set({ error: null });
+    // RequestService.setFavorite é o único caminho (Update preserva o campo).
+    // Otimista: o pin reflete na hora.
+    const prev = get().requests;
+    set({ requests: prev.map((r) => (r.id === id ? { ...r, is_favorite: favorite } : r)) });
+    try {
+      await RequestService.setFavorite(id, favorite);
+    } catch (err) {
+      set({ requests: prev, error: err instanceof Error ? err.message : "Failed to pin request" });
+      throw err;
+    }
+  },
+
+  move: async (id, folderId) => {
+    set({ error: null });
+    const prev = get().requests;
+    // Otimista: a request salta para o novo folder na árvore na hora.
+    set({ requests: prev.map((r) => (r.id === id ? { ...r, folder_id: folderId } : r)) });
+    try {
+      await RequestService.move(id, folderId);
+    } catch (err) {
+      set({ requests: prev, error: err instanceof Error ? err.message : "Failed to move request" });
       throw err;
     }
   },

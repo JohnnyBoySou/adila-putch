@@ -1,4 +1,8 @@
-import { type Environment, EnvironmentService } from "@/services/enviroments.service";
+import {
+  type Environment,
+  type EnvironmentInput,
+  EnvironmentService,
+} from "@/services/enviroments.service";
 import { create } from "zustand";
 
 interface EnvironmentsState {
@@ -6,9 +10,9 @@ interface EnvironmentsState {
   loading: boolean;
   error: string | null;
   load: () => Promise<void>;
-  create: (name: string, variables: Record<string, string>) => Promise<Environment>;
+  create: (input: EnvironmentInput) => Promise<Environment>;
   remove: (id: string) => Promise<void>;
-  update: (id: string, name: string, variables: Record<string, string>) => Promise<void>;
+  update: (id: string, input: EnvironmentInput) => Promise<void>;
 }
 
 export const useEnvironmentsStore = create<EnvironmentsState>((set) => ({
@@ -29,10 +33,10 @@ export const useEnvironmentsStore = create<EnvironmentsState>((set) => ({
     }
   },
 
-  create: async (name, variables) => {
+  create: async (input) => {
     set({ error: null });
     try {
-      const created = await EnvironmentService.create(name, variables);
+      const created = await EnvironmentService.create(input);
       set((s) => ({ environments: [...s.environments, created] }));
       return created;
     } catch (err) {
@@ -52,13 +56,15 @@ export const useEnvironmentsStore = create<EnvironmentsState>((set) => ({
     }
   },
 
-  update: async (id, name, variables) => {
+  update: async (id, input) => {
     set({ error: null });
     try {
-      await EnvironmentService.update(id, name, variables);
+      await EnvironmentService.update(id, input);
+      // Merge otimista dos campos editáveis; updated_at é gerido pelo backend
+      // e atualiza no próximo load da rota.
       set((s) => ({
         environments: s.environments.map((e) =>
-          e.id === id ? { ...e, name, variables } : e,
+          e.id === id ? { ...e, ...input } : e,
         ),
       }));
     } catch (err) {

@@ -27,6 +27,7 @@ import { Route as PanelWorkspacesWorkspaceIdUpdateRouteImport } from './routes/p
 import { Route as PanelEnvironmentsEnvironmentIdUpdateRouteImport } from './routes/panel/environments/$environmentId/update'
 import { Route as PanelCollectionsCollectionIdUpdateRouteImport } from './routes/panel/collections/$collectionId/update'
 import { Route as PanelCollectionsCollectionIdRequestsIndexRouteImport } from './routes/panel/collections/$collectionId/requests/index'
+import { Route as PanelCollectionsCollectionIdRequestsCreateRouteImport } from './routes/panel/collections/$collectionId/requests/create'
 
 const PanelRouteRoute = PanelRouteRouteImport.update({
   id: '/panel',
@@ -122,6 +123,12 @@ const PanelCollectionsCollectionIdRequestsIndexRoute =
     path: '/collections/$collectionId/requests/',
     getParentRoute: () => PanelRouteRoute,
   } as any)
+const PanelCollectionsCollectionIdRequestsCreateRoute =
+  PanelCollectionsCollectionIdRequestsCreateRouteImport.update({
+    id: '/collections/$collectionId/requests/create',
+    path: '/collections/$collectionId/requests/create',
+    getParentRoute: () => PanelRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -141,6 +148,7 @@ export interface FileRoutesByFullPath {
   '/panel/collections/$collectionId/update': typeof PanelCollectionsCollectionIdUpdateRoute
   '/panel/environments/$environmentId/update': typeof PanelEnvironmentsEnvironmentIdUpdateRoute
   '/panel/workspaces/$workspaceId/update': typeof PanelWorkspacesWorkspaceIdUpdateRoute
+  '/panel/collections/$collectionId/requests/create': typeof PanelCollectionsCollectionIdRequestsCreateRoute
   '/panel/collections/$collectionId/requests/': typeof PanelCollectionsCollectionIdRequestsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -161,6 +169,7 @@ export interface FileRoutesByTo {
   '/panel/collections/$collectionId/update': typeof PanelCollectionsCollectionIdUpdateRoute
   '/panel/environments/$environmentId/update': typeof PanelEnvironmentsEnvironmentIdUpdateRoute
   '/panel/workspaces/$workspaceId/update': typeof PanelWorkspacesWorkspaceIdUpdateRoute
+  '/panel/collections/$collectionId/requests/create': typeof PanelCollectionsCollectionIdRequestsCreateRoute
   '/panel/collections/$collectionId/requests': typeof PanelCollectionsCollectionIdRequestsIndexRoute
 }
 export interface FileRoutesById {
@@ -182,6 +191,7 @@ export interface FileRoutesById {
   '/panel/collections/$collectionId/update': typeof PanelCollectionsCollectionIdUpdateRoute
   '/panel/environments/$environmentId/update': typeof PanelEnvironmentsEnvironmentIdUpdateRoute
   '/panel/workspaces/$workspaceId/update': typeof PanelWorkspacesWorkspaceIdUpdateRoute
+  '/panel/collections/$collectionId/requests/create': typeof PanelCollectionsCollectionIdRequestsCreateRoute
   '/panel/collections/$collectionId/requests/': typeof PanelCollectionsCollectionIdRequestsIndexRoute
 }
 export interface FileRouteTypes {
@@ -204,6 +214,7 @@ export interface FileRouteTypes {
     | '/panel/collections/$collectionId/update'
     | '/panel/environments/$environmentId/update'
     | '/panel/workspaces/$workspaceId/update'
+    | '/panel/collections/$collectionId/requests/create'
     | '/panel/collections/$collectionId/requests/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -224,6 +235,7 @@ export interface FileRouteTypes {
     | '/panel/collections/$collectionId/update'
     | '/panel/environments/$environmentId/update'
     | '/panel/workspaces/$workspaceId/update'
+    | '/panel/collections/$collectionId/requests/create'
     | '/panel/collections/$collectionId/requests'
   id:
     | '__root__'
@@ -244,6 +256,7 @@ export interface FileRouteTypes {
     | '/panel/collections/$collectionId/update'
     | '/panel/environments/$environmentId/update'
     | '/panel/workspaces/$workspaceId/update'
+    | '/panel/collections/$collectionId/requests/create'
     | '/panel/collections/$collectionId/requests/'
   fileRoutesById: FileRoutesById
 }
@@ -380,6 +393,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PanelCollectionsCollectionIdRequestsIndexRouteImport
       parentRoute: typeof PanelRouteRoute
     }
+    '/panel/collections/$collectionId/requests/create': {
+      id: '/panel/collections/$collectionId/requests/create'
+      path: '/collections/$collectionId/requests/create'
+      fullPath: '/panel/collections/$collectionId/requests/create'
+      preLoaderRoute: typeof PanelCollectionsCollectionIdRequestsCreateRouteImport
+      parentRoute: typeof PanelRouteRoute
+    }
   }
 }
 
@@ -399,6 +419,7 @@ interface PanelRouteRouteChildren {
   PanelCollectionsCollectionIdUpdateRoute: typeof PanelCollectionsCollectionIdUpdateRoute
   PanelEnvironmentsEnvironmentIdUpdateRoute: typeof PanelEnvironmentsEnvironmentIdUpdateRoute
   PanelWorkspacesWorkspaceIdUpdateRoute: typeof PanelWorkspacesWorkspaceIdUpdateRoute
+  PanelCollectionsCollectionIdRequestsCreateRoute: typeof PanelCollectionsCollectionIdRequestsCreateRoute
   PanelCollectionsCollectionIdRequestsIndexRoute: typeof PanelCollectionsCollectionIdRequestsIndexRoute
 }
 
@@ -420,6 +441,8 @@ const PanelRouteRouteChildren: PanelRouteRouteChildren = {
   PanelEnvironmentsEnvironmentIdUpdateRoute:
     PanelEnvironmentsEnvironmentIdUpdateRoute,
   PanelWorkspacesWorkspaceIdUpdateRoute: PanelWorkspacesWorkspaceIdUpdateRoute,
+  PanelCollectionsCollectionIdRequestsCreateRoute:
+    PanelCollectionsCollectionIdRequestsCreateRoute,
   PanelCollectionsCollectionIdRequestsIndexRoute:
     PanelCollectionsCollectionIdRequestsIndexRoute,
 }

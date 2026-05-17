@@ -192,6 +192,14 @@ type folderFile struct {
 	CreatedAt string `yaml:"created_at"`
 }
 
+// orderFile é o manifesto de ordem manual de um container (raiz da coleção ou
+// um folder). Lista os ids dos filhos diretos (folders + requests) na ordem
+// escolhida pelo usuário. Ids ausentes do snapshot são ignorados na aplicação;
+// filhos sem entrada vão para o fim. Versionável (vai pro git).
+type orderFile struct {
+	Order []string `yaml:"order,omitempty"`
+}
+
 type requestFile struct {
 	ID         string            `yaml:"id"`
 	Name       string            `yaml:"name"`

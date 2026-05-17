@@ -25,13 +25,14 @@ import EnvironmentsEmpty from "./empty";
 import EnvironmentsList, { type ViewMode } from "./list";
 import EnvironmentsLoading from "./loading";
 
-type StatusFilter = "all" | "active" | "empty";
+type StatusFilter = "all" | "active" | "pinned" | "deprecated";
 type SortMode = "recent" | "name" | "vars";
 
 const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
   { value: "all", label: "Todos" },
   { value: "active", label: "Ativo" },
-  { value: "empty", label: "Vazios" },
+  { value: "pinned", label: "Fixados" },
+  { value: "deprecated", label: "Depreciados" },
 ];
 
 export default function EnvironmentsView() {
@@ -54,11 +55,14 @@ export default function EnvironmentsView() {
     const q = query.trim().toLowerCase();
 
     const filtered = environments.filter((e) => {
-      const count = Object.keys(e.variables ?? {}).length;
       if (status === "active" && e.id !== selectedId) return false;
-      if (status === "empty" && count > 0) return false;
+      if (status === "pinned" && !e.pinned) return false;
+      if (status === "deprecated" && !e.deprecated) return false;
       if (!q) return true;
-      return e.name.toLowerCase().includes(q);
+      return (
+        e.name.toLowerCase().includes(q) ||
+        (e.description ?? "").toLowerCase().includes(q)
+      );
     });
 
     const bySort = (a: Environment, b: Environment) => {
@@ -68,14 +72,19 @@ export default function EnvironmentsView() {
           Object.keys(b.variables ?? {}).length - Object.keys(a.variables ?? {}).length
         );
       }
-      // recent: criado mais recentemente primeiro
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      // recent: atualizado mais recentemente primeiro (cai pra created_at em
+      // ambientes antigos sem updated_at — soft migration do YAML)
+      const at = a.updated_at || a.created_at;
+      const bt = b.updated_at || b.created_at;
+      return new Date(bt).getTime() - new Date(at).getTime();
     };
 
     return [...filtered].sort((a, b) => {
+      // O ambiente ativo do workspace vem sempre primeiro; depois os fixados.
       const aActive = a.id === selectedId;
       const bActive = b.id === selectedId;
       if (aActive !== bActive) return aActive ? -1 : 1;
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
       return bySort(a, b);
     });
   }, [environments, query, status, sort, selectedId]);
@@ -108,7 +117,7 @@ export default function EnvironmentsView() {
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar por nome"
+              placeholder="Buscar por nome ou descrição"
               aria-label="Buscar ambientes"
               className="pl-9"
             />

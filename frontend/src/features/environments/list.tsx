@@ -20,7 +20,14 @@ import {
 } from "@/stores/selected-environment.store";
 import { useWorkspacesStore } from "@/stores/workspaces.store";
 import { Link } from "@tanstack/react-router";
-import { ClockIcon, EllipsisIcon, GlobeIcon, PencilIcon, Trash2Icon } from "lucide-react";
+import {
+  ClockIcon,
+  EllipsisIcon,
+  GlobeIcon,
+  PencilIcon,
+  PinIcon,
+  Trash2Icon,
+} from "lucide-react";
 import { toast } from "sonner";
 
 export type ViewMode = "list" | "grid";
@@ -60,9 +67,10 @@ const EnvironmentItem = ({
 
   const isActive = selectedId === environment.id;
   const count = Object.keys(environment.variables ?? {}).length;
-  const createdLabel = environment.created_at
-    ? formatRelative(environment.created_at)
-    : "Sem data";
+  const description = environment.description?.trim() || "Sem descrição";
+  // updated_at pode faltar em ambientes antigos (soft migration do YAML).
+  const stamp = environment.updated_at || environment.created_at;
+  const updatedLabel = stamp ? formatRelative(stamp) : "Sem data";
 
   const handleDelete = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -74,30 +82,30 @@ const EnvironmentItem = ({
   const cardClass = cn(
     "group/env relative overflow-hidden bg-background transition-[border-color,box-shadow,background-color] duration-200 hover:border-foreground/15 hover:bg-accent/20",
     isActive && "border-primary",
+    environment.deprecated && "opacity-70",
   );
 
-  // Impede que o clique no switch propague para o Link do card (navegação).
+  // O clique no switch não pode propagar para o Link do card (navegação). O
+  // onClick fica no próprio Switch (elemento interativo) — wrapper <span> com
+  // handler quebraria a11y (click sem teclado em elemento não-interativo).
   const toggle = (
-    <span
+    <Switch
+      checked={isActive}
+      aria-label={isActive ? "Desativar ambiente" : "Ativar ambiente"}
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
       }}
-    >
-      <Switch
-        checked={isActive}
-        aria-label={isActive ? "Desativar ambiente" : "Ativar ambiente"}
-        onCheckedChange={(v) =>
-          setSelectedEnvironmentId(v ? environment.id : null, workspaceId)
-        }
-      />
-    </span>
+      onCheckedChange={(v) =>
+        setSelectedEnvironmentId(v ? environment.id : null, workspaceId)
+      }
+    />
   );
 
   const meta = (
     <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
       <ClockIcon className="size-3 shrink-0 opacity-70" aria-hidden />
-      <span>{createdLabel}</span>
+      <span>{updatedLabel}</span>
       <span aria-hidden>·</span>
       <span>
         {count} {count === 1 ? "variável" : "variáveis"}
@@ -105,11 +113,23 @@ const EnvironmentItem = ({
     </p>
   );
 
-  const badges = isActive ? (
-    <Badge variant="outline" className="border-primary text-primary">
-      Ativo
-    </Badge>
-  ) : null;
+  const badges = (
+    <div className="flex shrink-0 items-center gap-1.5">
+      {environment.pinned ? (
+        <PinIcon className="size-3.5 fill-current text-info" aria-label="Fixado" />
+      ) : null}
+      {isActive ? (
+        <Badge variant="outline" className="border-primary text-primary">
+          Ativo
+        </Badge>
+      ) : null}
+      {environment.deprecated ? (
+        <Badge variant="outline" className="text-muted-foreground">
+          Depreciado
+        </Badge>
+      ) : null}
+    </div>
+  );
 
   const menu = (
     <Popover>
@@ -170,7 +190,7 @@ const EnvironmentItem = ({
                 {badges}
               </div>
               <CardDescription className="line-clamp-1 text-sm">
-                {count} {count === 1 ? "variável" : "variáveis"}
+                {description}
               </CardDescription>
             </div>
             <div className="flex shrink-0 items-center gap-4">
@@ -201,7 +221,7 @@ const EnvironmentItem = ({
         <CardHeader className="space-y-1.5 pt-4 pb-2">
           <CardTitle className="truncate text-base">{environment.name}</CardTitle>
           <CardDescription className="line-clamp-2 min-h-10 text-sm leading-relaxed">
-            {count} {count === 1 ? "variável definida" : "variáveis definidas"}
+            {description}
           </CardDescription>
         </CardHeader>
         <CardFooter className="mt-auto p-4 pt-2">{meta}</CardFooter>

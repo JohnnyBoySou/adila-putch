@@ -288,6 +288,27 @@ func (s *RequestsService) Delete(id string) error {
 	return s.store.DeleteRequest(id)
 }
 
+// SetFavorite alterna o "fixar" (is_favorite) de uma request. É o único
+// caminho para mudar esse campo — Update faz replace total mas preserva
+// is_favorite no store de propósito.
+func (s *RequestsService) SetFavorite(id string, favorite bool) error {
+	err := s.store.SetRequestFavorite(id, favorite)
+	if errors.Is(err, store.ErrNotFound) {
+		return fmt.Errorf("request não encontrado")
+	}
+	return err
+}
+
+// Move move a request para outro folder (folderID == "" = raiz da coleção).
+// Preserva todos os campos — diferente de Update.
+func (s *RequestsService) Move(id, folderID string) error {
+	err := s.store.MoveRequest(id, strings.TrimSpace(folderID))
+	if errors.Is(err, store.ErrNotFound) {
+		return fmt.Errorf("request ou pasta não encontrada")
+	}
+	return err
+}
+
 // Send dispara a request com o ciclo estilo Postman: pre-script (pode mutar
 // a request/variáveis) → envio → post-script (asserções/captura). Cria um
 // contexto com timeout por-request (ou o global do client se TimeoutMS == 0)

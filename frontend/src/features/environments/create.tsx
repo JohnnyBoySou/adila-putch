@@ -9,7 +9,7 @@ export default function EnvironmentCreate() {
 
   const handleSubmit = async (values: EnvironmentFormValues) => {
     try {
-      await create(values.name, values.variables);
+      await create(values);
       toast.success("Ambiente criado com sucesso");
       navigate({ to: "/panel/environments" });
     } catch (error) {
