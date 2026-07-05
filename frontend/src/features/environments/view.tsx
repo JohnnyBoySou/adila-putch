@@ -16,7 +16,7 @@ import {
   Button,
 } from "@/components/ui";
 import { useEnvironments } from "@/hooks/useEnvironments";
-import { Environment } from "@/services/enviroments.service";
+import { Environment } from "@/services/environments.service";
 import { useSelectedEnvironmentId } from "@/stores/selected-environment.store";
 import { useWorkspacesStore } from "@/stores/workspaces.store";
 import { GridIcon, ListIcon, PlusIcon, SearchIcon } from "lucide-react";

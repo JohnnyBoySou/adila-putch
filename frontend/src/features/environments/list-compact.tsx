@@ -2,7 +2,7 @@ import {
   useSelectedEnvironmentId,
   useSetSelectedEnvironmentId,
 } from "@/stores/selected-environment.store";
-import { Environment } from "../../services/enviroments.service";
+import { Environment } from "../../services/environments.service";
 import { Button } from "@/components/ui/button";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { type RefObject, useLayoutEffect, useRef, useState } from "react";

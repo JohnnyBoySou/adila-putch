@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { EnvironmentService } from "@/services/enviroments.service";
+import { EnvironmentService } from "@/services/environments.service";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { forwardRef, KeyboardEvent, useEffect, useImperativeHandle, useRef, useState } from "react";
 

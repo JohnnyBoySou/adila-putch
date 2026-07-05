@@ -13,7 +13,7 @@ import {
 } from "@/components/ui";
 import { useEnvironments } from "@/hooks/useEnvironments";
 import { cn, formatRelative } from "@/lib/utils";
-import { Environment } from "@/services/enviroments.service";
+import { Environment } from "@/services/environments.service";
 import {
   useSelectedEnvironmentId,
   useSetSelectedEnvironmentId,

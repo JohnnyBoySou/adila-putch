@@ -1,5 +1,8 @@
 import { WorkspaceService as Wails } from "@bindings/services";
 
+// WorkspaceService (singular): escolhe/gerencia a PASTA root do store no disco
+// (diálogo nativo, path atual, reset). Não confundir com WorkspacesService
+// (plural, workspaces.service.ts), que faz CRUD dos workspaces DENTRO do root.
 export const WorkspaceService = {
   getPath() {
     return Wails.GetPath();

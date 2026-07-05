@@ -11,7 +11,7 @@ import {
   Title,
 } from "@/components/ui";
 import { strMap } from "@/lib/utils";
-import type { EnvironmentInput } from "@/services/enviroments.service";
+import type { EnvironmentInput } from "@/services/environments.service";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import VariablesEditor from "./variables-editor";

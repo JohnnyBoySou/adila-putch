@@ -2,7 +2,7 @@ import {
   type Environment,
   type EnvironmentInput,
   EnvironmentService,
-} from "@/services/enviroments.service";
+} from "@/services/environments.service";
 import { create } from "zustand";
 
 interface EnvironmentsState {
