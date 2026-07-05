@@ -33,9 +33,47 @@ pública para isso. Edges válidas: `n/ne/e/se/s/sw/w/nw` + `-resize`.
 ### Versão do runtime DEVE bater com o Go
 
 `@wailsio/runtime` (frontend) e `github.com/wailsapp/wails/v3` (go.mod) são
-alpha sincronizados — **pinar exato**, sem `^`. Hoje ambos em `alpha.78`. Caret
+alpha sincronizados — **pinar exato**, sem `^`. Hoje ambos em `alpha.95`. Caret
 em prerelease puxa alpha mais novo e descasa o IPC. Ao bumpar um, bumpar o
 outro e rodar `bun install` + restart do `task dev`.
+
+**Três lugares, não dois**: além de `go.mod` e `package.json`, o **CLI `wails3`**
+(instalado global via `go install .../cmd/wails3@vX`) também precisa bater — é ele
+que gera as bindings e roda `wails3 dev`. Ao bumpar, rode
+`go install github.com/wailsapp/wails/v3/cmd/wails3@<versão>` e confira com
+`wails3 version`. As bindings geradas por um CLI de versão errada podem descasar
+do módulo.
+
+### Deps de sistema (Linux): GTK4 + WebKitGTK-6.0 desde o alpha.95
+
+A partir do `alpha.95` o runtime Linux migrou de **GTK3/WebKit2GTK-4.1** para
+**GTK4 + WebKitGTK-6.0**. Sem as libs de dev o `go build` falha no pkg-config
+(`Package 'gtk4' not found`). No Ubuntu 24.04:
+
+```
+sudo apt install libgtk-4-dev libwebkitgtk-6.0-dev
+```
+
+(`libsoup-3.0` e `gio-unix-2.0` já vêm com o webkit2gtk-4.1 anterior.)
+
+### Sandbox do WebKit no dev — `WEBKIT_DISABLE_SANDBOX`
+
+O WebKitGTK-6.0 isola os processos web num sandbox via `bwrap` (bubblewrap), que
+exige **user namespaces não-privilegiados**. O Ubuntu 24.04 os bloqueia por padrão
+(`kernel.apparmor_restrict_unprivileged_userns=1`) e o `bwrap` não é setuid — então
+o app **aborta na inicialização**:
+
+```
+bwrap: setting up uid map: Permission denied
+ERROR: Failed to fully launch dbus-proxy ... → SIGTRAP em cgo execution
+```
+
+Solução no projeto: `build/dev.sh` exporta
+`WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1` (herda por wails3 → binário → WebKit).
+Escopo **apenas do `task dev`** — o build/pacote de produção não passa por
+`dev.sh`. Desabilitar o sandbox destrava o dev local sem sudo e sem afrouxar
+segurança do sistema. Alternativa (mantém o sandbox, precisa sudo):
+`sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0`.
 
 ### Regra crítica: `--wails-draggable` herda
 
