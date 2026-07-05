@@ -53,7 +53,7 @@ verdes, zero refs ao typo `enviroments`, distinção documentada nos dois arquiv
 
 ---
 
-## Fase 1 — Buracos de teste de service no backend (P1, ~1.5 P)
+## Fase 1 — Buracos de teste de service no backend (P1, ~1.5 P) ✅ CONCLUÍDA
 
 **Por quê**: `services_test.go` cobre Collections/Environments/Requests/Tests, mas
 **não** Folders, Workspaces, Workspace, Prediction e Sync. Fechar isso cedo dá
@@ -61,20 +61,28 @@ rede de segurança para as Fases 2–3, que estendem justamente o `SyncService`.
 
 **Passos** (em `internal/services/`, tabela-driven, padrão dos testes existentes):
 
-1. `FoldersService`: create aninhado, `Move` (incl. recusa de ciclo, delegando ao
-   store), `GetOrders/SetOrder`, delete.
-2. `WorkspacesService`: CRUD, `SetActive`, garantia de "nunca sem workspace" no
-   `Delete`.
-3. `WorkspaceService`: `GetPath/ResetToDefault` (o `Choose` abre diálogo nativo —
-   testar só a persistência do path, não o diálogo).
-4. `PredictionService`: `Suggest` com TTL de 5s (rebuild do índice) — usar o
-   pacote `predict` já bem coberto como oráculo.
-5. `SyncService`: usar um repo git temporário (o pacote `git` já tem helpers de
-   teste) para `Status/Commit/Push/Pull/ResolveConflict`; mockar `github` onde
-   couber. Focar na orquestração, não na rede real.
+1. ✅ `FoldersService`: create aninhado, `Move` (incl. recusa de ciclo, delegando
+   ao store), `GetOrders/SetOrder`, delete + validações (nome/collection_id vazios,
+   pai/coleção inexistentes traduzidos para erro de domínio).
+2. ✅ `WorkspacesService`: CRUD com trim, `SetActive` (persiste no config), pinned
+   primeiro no `FindAll`, garantia de "nunca sem workspace" no `Delete` (repontar
+   para outro; recriar "Padrão" ao deletar o último).
+3. ✅ `WorkspaceService`: `GetPath/ResetToDefault` sob `XDG_CONFIG_HOME` isolado
+   (o `Choose` abre diálogo nativo — não testado, conforme planejado).
+4. ✅ `PredictionService`: `Suggest` cold start + match por histórico; TTL de 5s
+   validado de forma determinística manipulando `lastBuild` (mesmo package), sem
+   `sleep` — `predictTTL` é `const`, não regulável.
+5. ✅ `SyncService`: repo git temporário via `os/exec` (helpers do pacote `git`
+   são package-private, replicados localmente) para `Status/Commit/Push/Pull/`
+   `ResolveConflict`; `github` não-autenticado via `XDG_CONFIG_HOME` isolado, sem
+   rede. `Push/Pull` exercitados contra um bare remote local. Bônus: `sanitizeURL`
+   (segurança — não vazar token na UI/logs).
 
 **Pronto quando**: cada service acima com ao menos um teste de caminho feliz + um
-de erro; `go test -race ./internal/services/...` verde.
+de erro; `go test -race ./internal/services/...` verde. → **Atingido**: 11 novos
+testes em `services_phase1_test.go`, todos verdes com `-race`; cobertura do pacote
+`services` subiu para ~71,5%. Métodos ainda em 0% são só os que exigem rede real
+(OAuth Device Flow do GitHub) ou diálogo nativo (`Choose`/`apply`), fora do escopo.
 
 ---
 
