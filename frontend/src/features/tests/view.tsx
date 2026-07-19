@@ -132,7 +132,7 @@ export default function TestsView() {
                   />
                   <Select
                     value={step.request_id}
-                    onValueChange={(v) => updateStep(si, { request_id: v })}
+                    onValueChange={(v) => updateStep(si, { request_id: v ?? undefined })}
                   >
                     <SelectTrigger size="sm" className="flex-1">
                       <SelectValue placeholder="— escolher request —" />
@@ -163,7 +163,7 @@ export default function TestsView() {
                   <div key={ai} className="flex items-center gap-2 pl-8">
                     <Select
                       value={a.type}
-                      onValueChange={(v) => updateAssertion(si, ai, { type: v })}
+                      onValueChange={(v) => updateAssertion(si, ai, { type: v ?? undefined })}
                     >
                       <SelectTrigger size="sm" className="text-xs">
                         <SelectValue />
@@ -290,9 +290,7 @@ function TestRow({ name, steps, running, result, onRun, onDelete }: TestRowProps
           {result && (
             <span
               className={`text-xs px-2 py-0.5 rounded ${
-                result.passed
-                  ? "bg-success/15 text-success"
-                  : "bg-destructive/10 text-destructive"
+                result.passed ? "bg-success/15 text-success" : "bg-destructive/10 text-destructive"
               }`}
             >
               {result.passed ? "Passou" : "Falhou"}

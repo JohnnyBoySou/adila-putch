@@ -1,47 +1,28 @@
-import * as React from "react";
-import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
-import { Check, Minus } from "lucide-react";
-import { motion } from "motion/react";
+"use client";
+
+import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox";
 
 import { cn } from "@/lib/utils";
+import { CheckIcon } from "@phosphor-icons/react";
 
-const MotionCheckboxRoot = motion.create(CheckboxPrimitive.Root);
-
-const popSpring = { type: "spring", stiffness: 500, damping: 28 } as const;
-
-type CheckboxProps = Omit<
-  React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>,
-  "onAnimationStart" | "onAnimationEnd" | "onDrag" | "onDragStart" | "onDragEnd"
->;
-
-const Checkbox = React.forwardRef<React.ElementRef<typeof CheckboxPrimitive.Root>, CheckboxProps>(
-  ({ className, ...props }, ref) => (
-  <MotionCheckboxRoot
-    ref={ref}
-    whileTap={props.disabled ? undefined : { scale: 0.88 }}
-    transition={popSpring}
-    className={cn(
-      "peer flex size-3.5 shrink-0 items-center justify-center border border-border bg-background transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-foreground data-[state=checked]:bg-foreground data-[state=checked]:text-background data-[state=indeterminate]:border-foreground data-[state=indeterminate]:bg-foreground data-[state=indeterminate]:text-background",
-      className,
-    )}
-    {...props}
-  >
-    <CheckboxPrimitive.Indicator className="flex items-center justify-center">
-      <motion.span
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={popSpring}
-        className="flex items-center justify-center"
+function Checkbox({ className, ...props }: CheckboxPrimitive.Root.Props) {
+  return (
+    <CheckboxPrimitive.Root
+      data-slot="checkbox"
+      className={cn(
+        "peer cursor-pointer relative flex size-6 shrink-0 items-center justify-center rounded-[4px] border border-input transition-[color,background-color,border-color,box-shadow,transform] duration-150 ease-out outline-none active:scale-90 group-has-disabled/field:opacity-50 after:absolute after:-inset-x-3 after:-inset-y-2 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 aria-invalid:aria-checked:border-primary dark:bg-input/30 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground dark:data-checked:bg-primary",
+        className,
+      )}
+      {...props}
+    >
+      <CheckboxPrimitive.Indicator
+        data-slot="checkbox-indicator"
+        className="grid place-content-center text-current transition-[transform,opacity] duration-150 ease-out data-starting-style:scale-50 data-starting-style:opacity-0 data-ending-style:scale-50 data-ending-style:opacity-0 [&>svg]:size-3.5"
       >
-        {props.checked === "indeterminate" ? (
-          <Minus className="size-2.5" strokeWidth={3} />
-        ) : (
-          <Check className="size-2.5" strokeWidth={3} />
-        )}
-      </motion.span>
-    </CheckboxPrimitive.Indicator>
-  </MotionCheckboxRoot>
-));
-Checkbox.displayName = CheckboxPrimitive.Root.displayName;
+        <CheckIcon />
+      </CheckboxPrimitive.Indicator>
+    </CheckboxPrimitive.Root>
+  );
+}
 
 export { Checkbox };

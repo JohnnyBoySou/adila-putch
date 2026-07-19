@@ -112,6 +112,7 @@ export default function PullRequestsList() {
               <button
                 key={pr.number}
                 type="button"
+                aria-label={`Abrir pull request #${pr.number}: ${pr.title}`}
                 onClick={() =>
                   navigate({
                     to: "/panel/git/pull-requests/$number",
@@ -220,10 +221,7 @@ function CreatePrDialog({ open, onOpenChange, busy, onCreate }: CreatePrDialogPr
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
             Cancelar
           </Button>
-          <Button
-            onClick={() => onCreate(base, head, title, body)}
-            disabled={!canSubmit || busy}
-          >
+          <Button onClick={() => onCreate(base, head, title, body)} disabled={!canSubmit || busy}>
             Criar PR
           </Button>
         </DialogFooter>

@@ -52,11 +52,13 @@ export default function AuthEditor({ authType, authValue, onChange }: AuthEditor
   const type = authType || "none";
 
   const setType = (next: string) =>
-    onChange({ authType: next === "none" ? "" : next, authValue: next === "none" ? "" : authValue });
+    onChange({
+      authType: next === "none" ? "" : next,
+      authValue: next === "none" ? "" : authValue,
+    });
 
   // bearer: authValue é diretamente o token
-  const handleBearerChange = (token: string) =>
-    onChange({ authType, authValue: token });
+  const handleBearerChange = (token: string) => onChange({ authType, authValue: token });
 
   // basic: authValue = "usuario:senha"
   const [basicUser, basicPass] = splitOnFirst(authValue);
@@ -76,7 +78,7 @@ export default function AuthEditor({ authType, authValue, onChange }: AuthEditor
     <div className="space-y-4">
       <div className="space-y-1">
         <Label className="text-xs">Tipo de autenticação</Label>
-        <Select value={type} onValueChange={setType}>
+        <Select value={type} onValueChange={(next) => next !== null && setType(next)}>
           <SelectTrigger className="w-full">
             <SelectValue />
           </SelectTrigger>

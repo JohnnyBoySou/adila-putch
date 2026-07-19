@@ -5,12 +5,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/**
- * Normaliza mapas gerados pelo Wails (`{ [k]?: string }`, opcionais por
- * precaução) para `Record<string, string>`. O backend Go envia `map[string]string`,
- * então valores nunca são realmente undefined em runtime; isto torna isso explícito
- * no boundary, sem `as`.
- */
+/** Normaliza mapas opcionais gerados pelo Wails no boundary da aplicação. */
 export function strMap(map?: { [_: string]: string | undefined }): Record<string, string> {
   const result: Record<string, string> = {};
   for (const [key, value] of Object.entries(map ?? {})) {
@@ -31,13 +26,12 @@ export function formatTime(time: string): string {
 
 const relativeTime = new Intl.RelativeTimeFormat("pt-BR", { numeric: "auto" });
 
-/** Ex.: "há 2 horas", "há 3 dias" — a partir de ISO/string parseável por `Date`. */
+/** Ex.: "há 2 horas", "há 3 dias". */
 export function formatRelative(time: string): string {
   const then = new Date(time).getTime();
   if (Number.isNaN(then)) return "—";
 
   let delta = (then - Date.now()) / 1000;
-
   const steps: { limit: number; divisor: number; unit: Intl.RelativeTimeFormatUnit }[] = [
     { limit: 45, divisor: 1, unit: "second" },
     { limit: 45, divisor: 60, unit: "minute" },
@@ -48,11 +42,8 @@ export function formatRelative(time: string): string {
   ];
 
   for (const { limit, divisor, unit } of steps) {
-    if (Math.abs(delta) < limit) {
-      return relativeTime.format(Math.round(delta), unit);
-    }
+    if (Math.abs(delta) < limit) return relativeTime.format(Math.round(delta), unit);
     delta /= divisor;
   }
-
   return relativeTime.format(Math.round(delta), "year");
 }

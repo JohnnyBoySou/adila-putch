@@ -11,12 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  Label,
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui";
+import { Label, ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui";
 import {
   Select,
   SelectContent,
@@ -27,11 +22,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { methodTextClass } from "@/lib/http-methods";
 import { cn, strMap } from "../../lib/utils";
-import {
-  buildCurlCommand,
-  hasUnresolvedVariables,
-  resolveVariables,
-} from "../../lib/curl";
+import { buildCurlCommand, hasUnresolvedVariables, resolveVariables } from "../../lib/curl";
 import { useEnvironments } from "../../hooks/useEnvironments";
 import { useWorkspaces } from "../../hooks/useWorkspaces";
 import { useSelectedEnvironmentId } from "../../stores/selected-environment.store";
@@ -71,9 +62,7 @@ export default function RequestEditor({ request, onUpdate, onDelete }: RequestEd
   const [authType, setAuthType] = useState(request.auth_type || "");
   const [authValue, setAuthValue] = useState(request.auth_value || "");
   const [timeoutMs, setTimeoutMs] = useState<number>(request.timeout_ms || 0);
-  const [activeTab, setActiveTab] = useState<"params" | "headers" | "body" | "auth">(
-    "params",
-  );
+  const [activeTab, setActiveTab] = useState<"params" | "headers" | "body" | "auth">("params");
   const { response, loading: sending, error: sendError, sendRequest } = useRequestSender();
   const nameSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [editingName, setEditingName] = useState(false);
@@ -222,9 +211,7 @@ export default function RequestEditor({ request, onUpdate, onDelete }: RequestEd
       await navigator.clipboard.writeText(command);
       toast.success("Comando cURL copiado");
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Falha ao copiar o comando cURL",
-      );
+      toast.error(error instanceof Error ? error.message : "Falha ao copiar o comando cURL");
     }
   };
 
@@ -244,8 +231,18 @@ export default function RequestEditor({ request, onUpdate, onDelete }: RequestEd
     return () => window.removeEventListener("keydown", onKeyDown);
     // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    sending, url, method, headers, body, params, bodyType, form, files,
-    authType, authValue, timeoutMs,
+    sending,
+    url,
+    method,
+    headers,
+    body,
+    params,
+    bodyType,
+    form,
+    files,
+    authType,
+    authValue,
+    timeoutMs,
   ]);
 
   const handleMethodChange = async (newMethod: string) => {
@@ -343,13 +340,14 @@ export default function RequestEditor({ request, onUpdate, onDelete }: RequestEd
               placeholder="Nome da request"
             />
           ) : (
-            <h2
+            <button
+              type="button"
               onDoubleClick={() => setEditingName(true)}
               title="Dê dois cliques para renomear"
               className="flex-1 truncate text-lg font-semibold text-foreground cursor-text select-none"
             >
               {name || "Sem nome"}
-            </h2>
+            </button>
           )}
           <Button
             variant="ghost"
@@ -363,17 +361,16 @@ export default function RequestEditor({ request, onUpdate, onDelete }: RequestEd
         </div>
 
         <div className="flex items-center gap-2">
-          <Select value={method} onValueChange={handleMethodChange}>
+          <Select
+            value={method}
+            onValueChange={(newMethod) => newMethod !== null && void handleMethodChange(newMethod)}
+          >
             <SelectTrigger className={cn("font-semibold", methodTextClass(method))}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {HTTP_METHODS.map((m) => (
-                <SelectItem
-                  key={m}
-                  value={m}
-                  className={cn("font-semibold", methodTextClass(m))}
-                >
+                <SelectItem key={m} value={m} className={cn("font-semibold", methodTextClass(m))}>
                   {m}
                 </SelectItem>
               ))}
@@ -459,11 +456,7 @@ export default function RequestEditor({ request, onUpdate, onDelete }: RequestEd
               <QueryParamsEditor params={params} onChange={handleParamsChange} />
             )}
             {activeTab === "auth" && (
-              <AuthEditor
-                authType={authType}
-                authValue={authValue}
-                onChange={handleAuthChange}
-              />
+              <AuthEditor authType={authType} authValue={authValue} onChange={handleAuthChange} />
             )}
           </div>
         </ResizablePanel>
@@ -493,14 +486,12 @@ export default function RequestEditor({ request, onUpdate, onDelete }: RequestEd
           <DialogHeader>
             <DialogTitle>Opções da request</DialogTitle>
             <DialogDescription>
-              <span className="font-medium text-foreground">{name || "Sem nome"}</span> ·{" "}
-              {method} {url || "sem URL"}
+              <span className="font-medium text-foreground">{name || "Sem nome"}</span> · {method}{" "}
+              {url || "sem URL"}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-1">
-            <Label className="text-xs">
-              Timeout (ms) — 0 = sem limite por request
-            </Label>
+            <Label className="text-xs">Timeout (ms) — 0 = sem limite por request</Label>
             <Input
               type="number"
               min={0}

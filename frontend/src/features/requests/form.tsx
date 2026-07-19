@@ -1,13 +1,4 @@
-import {
-  Button,
-  Column,
-  Container,
-  Input,
-  Label,
-  Row,
-  Separator,
-  Title,
-} from "@/components/ui";
+import { Button, Column, Container, Input, Label, Row, Separator, Title } from "@/components/ui";
 import {
   Select,
   SelectContent,
@@ -106,7 +97,9 @@ export default function RequestForm({
         {templates.length > 0 && (
           <div className="space-y-1">
             <Label>Template</Label>
-            <Select onValueChange={applyTemplate}>
+            <Select<string>
+              onValueChange={(templateId) => templateId !== null && applyTemplate(templateId)}
+            >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Aplicar um template…" />
               </SelectTrigger>
@@ -135,7 +128,10 @@ export default function RequestForm({
 
         <div className="space-y-1">
           <Label>Método</Label>
-          <Select value={form.method} onValueChange={(v) => setForm({ ...form, method: v })}>
+          <Select
+            value={form.method}
+            onValueChange={(v) => v !== null && setForm({ ...form, method: v })}
+          >
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>

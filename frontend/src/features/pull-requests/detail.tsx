@@ -40,7 +40,10 @@ function formatDate(value: string): string {
 }
 
 // Estado de review → rótulo/cor em pt-BR.
-const REVIEW_STATE: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+const REVIEW_STATE: Record<
+  string,
+  { label: string; variant: "default" | "secondary" | "destructive" | "outline" }
+> = {
   APPROVED: { label: "aprovou", variant: "default" },
   CHANGES_REQUESTED: { label: "pediu mudanças", variant: "destructive" },
   COMMENTED: { label: "comentou", variant: "secondary" },
@@ -123,14 +126,13 @@ export default function PullRequestDetail() {
   }
 
   const isOpen = detail.state === "open" && !detail.merged;
-  const mergeableHint =
-    detail.merged
-      ? "já mesclado"
-      : detail.mergeable === true
-        ? "sem conflitos"
-        : detail.mergeable === false
-          ? "com conflitos"
-          : detail.mergeableState || "";
+  const mergeableHint = detail.merged
+    ? "já mesclado"
+    : detail.mergeable === true
+      ? "sem conflitos"
+      : detail.mergeable === false
+        ? "com conflitos"
+        : detail.mergeableState || "";
 
   const handleComment = async () => {
     if (commentBody.trim() === "") return;
@@ -177,7 +179,10 @@ export default function PullRequestDetail() {
 
       {isOpen && (
         <Row className="items-center gap-2">
-          <Select value={mergeMethod} onValueChange={setMergeMethod}>
+          <Select
+            value={mergeMethod}
+            onValueChange={(value) => value !== null && setMergeMethod(value)}
+          >
             <SelectTrigger className="w-32">
               <SelectValue />
             </SelectTrigger>
@@ -263,7 +268,11 @@ export default function PullRequestDetail() {
                     rows={3}
                   />
                   <Row className="justify-end">
-                    <Button size="sm" onClick={handleComment} disabled={busy || commentBody.trim() === ""}>
+                    <Button
+                      size="sm"
+                      onClick={handleComment}
+                      disabled={busy || commentBody.trim() === ""}
+                    >
                       Comentar
                     </Button>
                   </Row>
@@ -349,7 +358,10 @@ export default function PullRequestDetail() {
                 key={c.sha}
                 className="items-center gap-2 rounded-lg border border-border bg-card p-2.5"
               >
-                <GitCommitHorizontal strokeWidth={1.5} className="size-4 shrink-0 text-muted-foreground" />
+                <GitCommitHorizontal
+                  strokeWidth={1.5}
+                  className="size-4 shrink-0 text-muted-foreground"
+                />
                 <Column className="min-w-0 gap-0.5">
                   <span className="truncate text-sm">{c.subject}</span>
                   <span className="text-xs text-muted-foreground">
